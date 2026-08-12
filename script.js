@@ -13,7 +13,7 @@ const ICON_MODAL  = "⧉";     // icona de paleta minimalista
 const ICON_PIN    = "⚑";     // pin fixat
 const ICON_UNPIN  = "⚐";     // pin desfet
 
-const GOOGLE_CLIENT_ID = "680253604844-7av1h2q5h9ken9a5n0f11kdedfr520ug.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "195926325439-n1a38feptsfcehpobb9bfhk7fmeg8v4i.apps.googleusercontent.com";
 const GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.file";
 
 let googleAuthenticated = false;
