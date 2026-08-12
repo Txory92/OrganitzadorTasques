@@ -13,7 +13,7 @@ const ICON_MODAL  = "⧉";     // icona de paleta minimalista
 const ICON_PIN    = "⚑";     // pin fixat
 const ICON_UNPIN  = "⚐";     // pin desfet
 
-const GOOGLE_CLIENT_ID = "454794126839-vd9cbv6dtujgk0ahs0cchqv9vh5lhqcv.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "680253604844-7av1h2q5h9ken9a5n0f11kdedfr520ug.apps.googleusercontent.com";
 const GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.file";
 
 let googleAuthenticated = false;
@@ -1689,7 +1689,8 @@ async function handleGoogleLogin(response) {
 
     await gapi.client.init({
         clientId: GOOGLE_CLIENT_ID,
-        scope: GOOGLE_SCOPES
+        scope: GOOGLE_SCOPES,
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
     });
 
     driveReady = true;
