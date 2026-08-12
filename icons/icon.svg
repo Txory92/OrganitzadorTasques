@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Fons Material Dark -->
+  <rect width="512" height="512" rx="100" fill="#1d1f23"/>
+
+  <!-- Targeta principal -->
+  <rect x="86" y="130" width="340" height="250" rx="28"
+        fill="#ffffff" opacity="0.90"/>
+
+  <!-- Barra superior de la targeta -->
+  <rect x="86" y="130" width="340" height="60" rx="20"
+        fill="#6f82ff"/>
+
+  <!-- Cercle decoratiu (accent) -->
+  <circle cx="426" cy="86" r="40" fill="#6f82ff"/>
+
+</svg>
