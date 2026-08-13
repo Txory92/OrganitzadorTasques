@@ -145,7 +145,8 @@ function save() {
         localStorage.setItem("appTitle", currentWorkspace);
     }
 
-    localStorage.setItem(currentWorkspace, JSON.stringify(cards));
+    const cardsToStore = cards.map(({ open, ...card }) => card);
+    localStorage.setItem(currentWorkspace, JSON.stringify(cardsToStore));
 
     // Guarda també el nom del workspace actual
     localStorage.setItem("appTitle", currentWorkspace);
@@ -156,54 +157,27 @@ function save() {
     }
 }
 
-// Token refresh automàtic ELIMINAT
-// Ara fem refresh reactiu quan detectem 401 (token expirat) en una request
-// Això evita que es tanquin les targetes obertes sense motiu
-/*
-// Refrescar el token automàticament (cada 50 minuts)
-async function startTokenRefresh() {
-    if (tokenRefreshInterval) {
-        clearInterval(tokenRefreshInterval);
-    }
-
-    // Fer refresh cada 50 minuts (deixar 10 minuts de marge)
-    tokenRefreshInterval = setInterval(async () => {
-        console.log("🔄 Refrescant token de Google...");
-        await performTokenRefresh();
-    }, 50 * 60 * 1000); // 50 minuts
-}
-*/
-
 // Helper: Check for expired token (401) i refrescar si és necessari
 async function handleDriveResponse(response) {
-    if (response.status === 401) {
-        console.warn("⚠️ Token expirat (401). Intentant refrescar...");
-        
-        // Intentar refrescar el token
-        await performTokenRefresh();
-        
-        // Esperar un moment per deixar que el popup refrescara el token
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Si el token segueix sent el mateix, mostrar avís
-        if (googleAccessToken) {
-            console.log("✅ Token refrescat. Reintentant operació...");
-            return true; // Caller ha de reintentar la request
-        } else {
-            console.error("❌ No es va poder refrescar el token. Cal tornar a fer login.");
-            showTokenExpiredAlert();
-            return false;
-        }
-    }
-    return null; // No hi ha problema
+    if (response.status !== 401) return null;
+
+    console.warn("⚠️ Token expirat (401). Cal tornar a iniciar sessió.");
+    googleAccessToken = null;
+    driveReady = false;
+    localStorage.removeItem("googleAccessToken");
+    showTokenExpiredAlert();
+    return false;
 }
 
 function showTokenExpiredAlert() {
+    if (document.getElementById("tokenExpiredAlert")) return;
+
     const message = "La teva sessió ha expirat. Fes login de nou.";
     console.warn(message);
     
     // Mostrar al·lerta visual (sense bloquejar)
     const banner = document.createElement('div');
+    banner.id = "tokenExpiredAlert";
     banner.style.cssText = `
         position: fixed;
         top: 0;
@@ -242,65 +216,6 @@ function showTokenExpiredAlert() {
     setTimeout(() => {
         if (banner.parentNode) banner.remove();
     }, 8000);
-}
-async function performTokenRefresh() {
-    if (!googleAccessToken) return;
-
-    try {
-        console.log("🔄 Refrescant token de Google...");
-        
-        const clientId = GOOGLE_CLIENT_ID;
-        const pathWithoutFile = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-        const redirectUri = window.location.origin + pathWithoutFile;
-        const scope = GOOGLE_SCOPES;
-
-        // Obrir popup invisible per auth
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-            `client_id=${clientId}&` +
-            `response_type=token&` +
-            `scope=${encodeURIComponent(scope)}&` +
-            `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-            `prompt=none`;
-
-        const popup = window.open(authUrl, 'tokenRefresh', 'width=1,height=1');
-        
-        // Monitoritzar popup per token nou
-        const checkInterval = setInterval(() => {
-            try {
-                // Intentar llegir URL del popup (si tenim accés)
-                if (popup && popup.location && popup.location.hash) {
-                    const hash = popup.location.hash.substring(1);
-                    const params = new URLSearchParams(hash);
-                    const newToken = params.get('access_token');
-                    
-                    if (newToken && newToken !== googleAccessToken) {
-                        googleAccessToken = newToken;
-                        localStorage.setItem("googleAccessToken", newToken);
-                        console.log("✅ Token refrescat silenciosament!");
-                        popup.close();
-                        clearInterval(checkInterval);
-                        return;
-                    }
-                }
-            } catch (e) {
-                // Si no podem accedir (popup blocker), tancar i continuar
-                popup.close();
-                clearInterval(checkInterval);
-            }
-        }, 500);
-
-        // Timeout: tancar popup si no funciona
-        setTimeout(() => {
-            if (popup && !popup.closed) {
-                popup.close();
-            }
-            clearInterval(checkInterval);
-        }, 3000);
-
-    } catch (err) {
-        console.warn("⚠️ No es va poder refrescar el token silenciosament:", err);
-        // Continue anyway - token serà vàlid uns minuts més
-    }
 }
 
 // Ya no es necesario (refresh automático eliminado)
@@ -423,7 +338,7 @@ async function saveWorkspaceToDrive(workspaceName) {
         }
 
         const fileName = `${workspaceName}.json`;
-        const fileContent = JSON.stringify(cards);
+        const fileContent = JSON.stringify(cards.map(({ open, ...card }) => card));
         
         // Buscar si ja existeix el fitxer a la carpeta
         const query = `name='${fileName}' and trashed=false and mimeType='application/json'${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
@@ -1194,22 +1109,6 @@ function buildCardElement(card) {
     });
 
 
-    /* -------- ESTAT INICIAL -------- */
-    if(card.open){
-        console.log(`🎨 Renderitzant targeta oberta: ${card.title}`);
-        el.classList.add("openCard");
-        body.classList.add("open");
-        el.style.setProperty("--glow-color", soft(card.color));
-        body.style.padding = "16px 14px 20px 14px";
-        
-        // Deixar que el DOM es calculi correctament, després afegir maxHeight
-        requestAnimationFrame(() => {
-            const scrollHeight = body.scrollHeight;
-            console.log(`📏 ScrollHeight per ${card.title}: ${scrollHeight}px`);
-            body.style.maxHeight = Math.max(scrollHeight, 100) + "px";  // Mínimo 100px
-        });
-    }
-
     enableInlineAutoSave(card, el);
 
     return el;
@@ -1225,7 +1124,6 @@ function toggleCardDOM(card, el){
 
     card.open = !card.open;
     save();
-    saveOpenCardsState();  // Guardar estat d'obertura
 
     if(card.open){
         //compact.style.display = "none";
@@ -1387,56 +1285,15 @@ function replaceCardDOM(card, oldEl){
     oldEl.replaceWith(newEl);
 }
 /* ============================================================
-   PERSISTÈNCIA DE TARGETES OBERTES (REFRESH)
-============================================================ */
-function saveOpenCardsState(){
-    // Guardar quins IDs de targetes estan obertes
-    const openCardIds = cards
-        .filter(card => card.open === true)
-        .map(card => card.id);
-    
-    const storageKey = currentWorkspace + "_openCards";
-    localStorage.setItem(storageKey, JSON.stringify(openCardIds));
-    console.log(`💾 Estat de targetes obertes guardat [${currentWorkspace}]:`, openCardIds);
-}
-
-function restoreOpenCardsState(){
-    // Restaurar targetes que estaven obertes
-    const storageKey = currentWorkspace + "_openCards";
-    const savedOpenIds = localStorage.getItem(storageKey);
-    
-    console.log(`🔍 Intentant restaurar targetes obertes [${currentWorkspace}]. Storage: ${storageKey}`, savedOpenIds);
-    
-    if (!savedOpenIds) {
-        console.log("ℹ️ No hi ha estat guardat de targetes obertes");
-        return;
-    }
-    
-    try {
-        const openIds = JSON.parse(savedOpenIds);
-        console.log(`📋 IDs a restaurar: ${openIds.length}`, openIds);
-        
-        cards.forEach(card => {
-            if (openIds.includes(card.id)) {
-                console.log(`✅ Restaurant targeta oberta: ${card.title} (${card.id})`);
-                card.open = true;
-            }
-        });
-        
-        console.log("✅ Estat de targetes obertes restaurat");
-    } catch (err) {
-        console.warn("⚠️ Error restaurant targetes obertes:", err);
-    }
-}
-
-/* ============================================================
    BUILD INICIAL
 ============================================================ */
 function initCards(){
     cardContainer.innerHTML="";
-    
-    // Restaurar targetes que estaven obertes
-    restoreOpenCardsState();
+
+    cards.forEach(card => {
+        card.open = false;
+    });
+    localStorage.removeItem(currentWorkspace + "_openCards");
     
     cards.forEach(card =>{
         const el = buildCardElement(card);
