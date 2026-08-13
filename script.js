@@ -148,9 +148,9 @@ function save() {
     // Guarda també el nom del workspace actual
     localStorage.setItem("appTitle", currentWorkspace);
 
-    // Sincronitza a Google Drive si està connectat
+    // Sincronitza a Google Drive si està connectat (async, en background)
     if (driveReady) {
-        saveWorkspaceToDrive(currentWorkspace);
+        saveWorkspaceToDrive(currentWorkspace).catch(err => console.error("Error guardant a Drive:", err));
     }
 }
 
@@ -168,6 +168,7 @@ async function ensureAppFolder() {
         if (searchData.files && searchData.files.length > 0) {
             // Carpeta ja existeix
             driveFolderId = searchData.files[0].id;
+            localStorage.setItem("driveFolderId", driveFolderId);
             console.log("✅ Carpeta OrganitzadorTasques trobada al Drive");
             return;
         }
@@ -187,6 +188,7 @@ async function ensureAppFolder() {
 
         const folderData = await createRes.json();
         driveFolderId = folderData.id;
+        localStorage.setItem("driveFolderId", driveFolderId);
         console.log("✅ Carpeta OrganitzadorTasques creada al Drive");
 
     } catch (err) {
@@ -199,6 +201,11 @@ async function saveWorkspaceToDrive(workspaceName) {
     if (!driveReady || !googleAccessToken) return;
 
     try {
+        // Assegurar que hi ha driveFolderId (crear carpeta si no existeix)
+        if (!driveFolderId) {
+            await ensureAppFolder();
+        }
+
         const syncStatus = document.getElementById("syncStatus");
         if (syncStatus) {
             syncStatus.style.display = "inline-block";
@@ -1705,14 +1712,23 @@ async function initGoogleAuth() {
         googleAccessToken = accessToken;
         driveReady = true;
         
+        // Recuperar driveFolderId de localStorage si existeix
+        const savedFolderId = localStorage.getItem("driveFolderId");
+        if (savedFolderId) {
+            driveFolderId = savedFolderId;
+            console.log("✅ driveFolderId carregat de localStorage");
+        }
+        
         // Netejar la URL
         window.history.replaceState({}, document.title, window.location.pathname);
         
         document.getElementById("googleLoginBtn").classList.add("hidden");
         document.getElementById("googleLogoutBtn").classList.remove("hidden");
         
-        // Crear/verificar carpeta OrganitzadorTasques
-        await ensureAppFolder();
+        // Crear/verificar carpeta OrganitzadorTasques (si no la tenim ja)
+        if (!driveFolderId) {
+            await ensureAppFolder();
+        }
         
         // Sincronitzar workspaces i carregar dades del Drive
         await loadAllDriveWorkspaces();
