@@ -147,6 +147,7 @@ function save() {
 
     const cardsToStore = cards.map(({ open, ...card }) => card);
     localStorage.setItem(currentWorkspace, JSON.stringify(cardsToStore));
+    localStorage.setItem(currentWorkspace + "_timestamp", Date.now().toString());
 
     // Guarda també el nom del workspace actual
     localStorage.setItem("appTitle", currentWorkspace);
@@ -514,7 +515,16 @@ async function loadWorkspaceFromDrive(workspaceName) {
         const driveModifiedTime = new Date(searchData.files[0].modifiedTime).getTime();
 
         // Comparar timestamps per detectar conflictes
+        const localStorageValue = localStorage.getItem(workspaceName);
         const localTimestamp = parseInt(localStorage.getItem(workspaceName + "_timestamp")) || 0;
+
+        // Les dades locals antigues no tenen prou informació per decidir el guanyador.
+        // No les substituïm silenciosament per les de Drive.
+        if (localStorageValue && !localTimestamp) {
+            console.warn(`⚠️ Conflicte pendent per "${workspaceName}": hi ha dades locals sense timestamp. No se substitueixen per Drive.`);
+            localStorage.setItem(workspaceName + "_beforeDriveSync", localStorageValue);
+            return null;
+        }
 
         if (driveModifiedTime > localTimestamp) {
             // Drive és més recent, descarregar
@@ -546,11 +556,19 @@ async function loadWorkspaceFromDrive(workspaceName) {
             
             const driveCards = await fileRes.json();
 
-            // Guardar les dades del Drive a localStorage
+            // Fer una còpia abans de substituir dades locals per les de Drive
             if (Array.isArray(driveCards)) {
+                const localCards = localStorage.getItem(workspaceName);
+                if (localCards) {
+                    localStorage.setItem(
+                        workspaceName + "_beforeDriveSync",
+                        localCards
+                    );
+                }
+
                 cards = driveCards;
                 localStorage.setItem(currentWorkspace, JSON.stringify(cards));
-                localStorage.setItem(workspaceName + "_timestamp", Date.now().toString());
+                localStorage.setItem(workspaceName + "_timestamp", driveModifiedTime.toString());
                 localStorage.setItem(workspaceName + "_driveId", fileId);
 
                 console.log(`✅ ${cards.length} targetes carregades de Drive`);
