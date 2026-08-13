@@ -23,6 +23,10 @@ let driveFolderId = null;  // ID de la carpeta d'OrganitzadorTasques
 let tokenExpirationTime = null;  // Quan expira el token (timestamp)
 let tokenRefreshInterval = null;  // Interval per refrescar el token
 let driveSaveRevision = 0;
+let driveSaveTimer = null;
+let driveSaveInProgress = false;
+let queuedDriveWorkspace = null;
+let queuedDriveRevision = 0;
 
 function updateDriveSyncStatus(state, detail = "") {
     const status = document.getElementById("driveSyncStatus");
@@ -38,6 +42,32 @@ function updateDriveSyncStatus(state, detail = "") {
 
     status.dataset.state = state;
     status.querySelector(".driveSyncStatusText").textContent = detail || labels[state];
+}
+
+function queueDriveSave(workspaceName) {
+    queuedDriveWorkspace = workspaceName;
+    queuedDriveRevision = ++driveSaveRevision;
+    updateDriveSyncStatus("pending");
+
+    if (driveSaveTimer) clearTimeout(driveSaveTimer);
+
+    driveSaveTimer = setTimeout(async () => {
+        if (driveSaveInProgress) {
+            queueDriveSave(queuedDriveWorkspace);
+            return;
+        }
+
+        const workspaceToSave = queuedDriveWorkspace;
+        const revisionToSave = queuedDriveRevision;
+        driveSaveTimer = null;
+        driveSaveInProgress = true;
+
+        try {
+            await saveWorkspaceToDrive(workspaceToSave, revisionToSave);
+        } finally {
+            driveSaveInProgress = false;
+        }
+    }, 800);
 }
 
 
@@ -171,10 +201,7 @@ function save() {
 
     // Sincronitza a Google Drive si està connectat (async, en background)
     if (driveReady) {
-        const saveRevision = ++driveSaveRevision;
-        updateDriveSyncStatus("pending");
-        saveWorkspaceToDrive(currentWorkspace, saveRevision)
-            .catch(err => console.error("Error guardant a Drive:", err));
+        queueDriveSave(currentWorkspace);
     } else {
         updateDriveSyncStatus("local");
     }
@@ -358,7 +385,7 @@ async function saveWorkspaceToDrive(workspaceName, saveRevision = driveSaveRevis
         updateDriveSyncStatus("syncing");
 
         const fileName = `${workspaceName}.json`;
-        const fileContent = JSON.stringify(cards.map(({ open, ...card }) => card));
+        const fileContent = localStorage.getItem(workspaceName) || JSON.stringify(cards.map(({ open, ...card }) => card));
         
         // Buscar si ja existeix el fitxer a la carpeta
         const query = `name='${fileName}' and trashed=false and mimeType='application/json'${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
