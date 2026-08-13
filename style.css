@@ -1601,19 +1601,19 @@ header.logged-in {
 /* No connectat a Google Drive - MOSTRAR INDICADOR */
 header.logged-out {
     border-bottom: 3px solid #f44336;
+    flex-wrap: wrap;
 }
 
 header.logged-out::after {
     content: "🔓 No connectat a Google Drive";
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
+    flex: 0 0 100%;
     background: #f44336;
     color: white;
-    padding: 6px 14px;
-    border-radius: 20px;
+    padding: 8px 14px;
+    border-radius: 0;
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.5px;
+    text-align: center;
+    margin-top: 8px;
 }
