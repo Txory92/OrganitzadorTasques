@@ -74,6 +74,20 @@ body {
     background: rgba(0,0,0,0.25);
 }
 
+mark.searchHighlight {
+    padding: 0 2px;
+    border-radius: 3px;
+    background: #fde047;
+    color: #312e00;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+[data-theme="dark"] mark.searchHighlight {
+    background: #eab308;
+    color: #1c1600;
+}
+
 .hidden {
     display: none !important;
 }

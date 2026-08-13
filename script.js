@@ -1574,6 +1574,45 @@ modalSave.onclick = ()=>{
 /* document.getElementById("search")
     .addEventListener("input", applySearchAndFilterToDOM); */
 
+function clearSearchHighlights(container) {
+    container.querySelectorAll("mark.searchHighlight").forEach(mark => {
+        mark.replaceWith(document.createTextNode(mark.textContent));
+    });
+    container.normalize();
+}
+
+function highlightSearchMatches(container, searchTerm) {
+    clearSearchHighlights(container);
+    if (!searchTerm) return;
+
+    const matcher = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (node.parentElement.closest(".richTextToolbar")) continue;
+        if (matcher.test(node.nodeValue)) textNodes.push(node);
+        matcher.lastIndex = 0;
+    }
+
+    textNodes.forEach(node => {
+        const fragment = document.createDocumentFragment();
+        node.nodeValue.split(matcher).forEach(part => {
+            if (!part) return;
+            if (part.toLocaleLowerCase("ca-ES") === searchTerm.toLocaleLowerCase("ca-ES")) {
+                const mark = document.createElement("mark");
+                mark.className = "searchHighlight";
+                mark.textContent = part;
+                fragment.appendChild(mark);
+            } else {
+                fragment.appendChild(document.createTextNode(part));
+            }
+        });
+        node.replaceWith(fragment);
+    });
+}
+
 function applySearchAndFilterToDOM() {
 
     const s = searchInput.value.toLowerCase().trim();
@@ -1600,6 +1639,14 @@ function applySearchAndFilterToDOM() {
             }
 
             el.style.display = visible ? "block" : "none";
+
+            const searchableFields = [
+                el.querySelector(".cardTitle"),
+                el.querySelector(".tagRowCompact"),
+                el.querySelector(".bodyText")
+            ].filter(Boolean);
+
+            searchableFields.forEach(field => highlightSearchMatches(field, visible ? s : ""));
         });
 }
 
@@ -1905,7 +1952,9 @@ function saveInline(card, el, normalize = true){
     if (!body) return;
 
     // Actualitza només el model
-    card.content = body.innerHTML.trim();
+    const contentToSave = body.cloneNode(true);
+    clearSearchHighlights(contentToSave);
+    card.content = contentToSave.innerHTML.trim();
     save();
 
     // Si normalize és false → NO modifiquem HTML
