@@ -1186,10 +1186,18 @@ function buildCardElement(card) {
 
     /* -------- ESTAT INICIAL -------- */
     if(card.open){
+        console.log(`🎨 Renderitzant targeta oberta: ${card.title}`);
         el.classList.add("openCard");
         body.classList.add("open");
-        body.style.maxHeight = body.scrollHeight + "px";
         el.style.setProperty("--glow-color", soft(card.color));
+        body.style.padding = "16px 14px 20px 14px";
+        
+        // Deixar que el DOM es calculi correctament, després afegir maxHeight
+        requestAnimationFrame(() => {
+            const scrollHeight = body.scrollHeight;
+            console.log(`📏 ScrollHeight per ${card.title}: ${scrollHeight}px`);
+            body.style.maxHeight = Math.max(scrollHeight, 100) + "px";  // Mínimo 100px
+        });
     }
 
     enableInlineAutoSave(card, el);
@@ -1207,6 +1215,7 @@ function toggleCardDOM(card, el){
 
     card.open = !card.open;
     save();
+    saveOpenCardsState();  // Guardar estat d'obertura
 
     if(card.open){
         //compact.style.display = "none";
@@ -1367,13 +1376,58 @@ function replaceCardDOM(card, oldEl){
     const newEl = buildCardElement(card);
     oldEl.replaceWith(newEl);
 }
+/* ============================================================
+   PERSISTÈNCIA DE TARGETES OBERTES (REFRESH)
+============================================================ */
+function saveOpenCardsState(){
+    // Guardar quins IDs de targetes estan obertes
+    const openCardIds = cards
+        .filter(card => card.open === true)
+        .map(card => card.id);
+    
+    const storageKey = currentWorkspace + "_openCards";
+    localStorage.setItem(storageKey, JSON.stringify(openCardIds));
+    console.log(`💾 Estat de targetes obertes guardat [${currentWorkspace}]:`, openCardIds);
+}
 
+function restoreOpenCardsState(){
+    // Restaurar targetes que estaven obertes
+    const storageKey = currentWorkspace + "_openCards";
+    const savedOpenIds = localStorage.getItem(storageKey);
+    
+    console.log(`🔍 Intentant restaurar targetes obertes [${currentWorkspace}]. Storage: ${storageKey}`, savedOpenIds);
+    
+    if (!savedOpenIds) {
+        console.log("ℹ️ No hi ha estat guardat de targetes obertes");
+        return;
+    }
+    
+    try {
+        const openIds = JSON.parse(savedOpenIds);
+        console.log(`📋 IDs a restaurar: ${openIds.length}`, openIds);
+        
+        cards.forEach(card => {
+            if (openIds.includes(card.id)) {
+                console.log(`✅ Restaurant targeta oberta: ${card.title} (${card.id})`);
+                card.open = true;
+            }
+        });
+        
+        console.log("✅ Estat de targetes obertes restaurat");
+    } catch (err) {
+        console.warn("⚠️ Error restaurant targetes obertes:", err);
+    }
+}
 
 /* ============================================================
    BUILD INICIAL
 ============================================================ */
 function initCards(){
     cardContainer.innerHTML="";
+    
+    // Restaurar targetes que estaven obertes
+    restoreOpenCardsState();
+    
     cards.forEach(card =>{
         const el = buildCardElement(card);
         cardContainer.appendChild(el);
