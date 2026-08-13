@@ -1,0 +1,113 @@
+[
+  {
+    "id": "mjh5j0hdzcawfdlye5d",
+    "title": "STICKY BUTTON",
+    "tags": [
+      "PRJ",
+      "R4"
+    ],
+    "content": "<div><b>JIRA:</b></div><div>https://jira.si.orange.es/browse/EREBOR-25548</div><div><br></div><div><b>TSD:</b></div><div>https://si-cognitio.atlassian.net/wiki/spaces/TEREFO/pages/754745633/HT+-+Implementaci+n+Sticky+Completo+de+Resumen+de+Compra+en+el+Flujo+de+Contrataci+n</div><b><div><b><br></b></div>Developer</b>: Jesus Gonzalez Cano<div><br><div>CDT --&gt; S'ha de fer<br><br>Los botones de añadir al carrito son \"fáciles\" al estar ya en el buttons.isml<br>Para el resto de botones del flujo, añadir un botón genérico que se rellene igual que el que haya en la página que sea?<br>Pasar el botón de alguna manera al cardTariffSticky y que lo renderice ya10.113.71.236? El botón tendría que funcionar exactamente igual que el ya existente<br><br>CONFIGURATOR --&gt; Aplicar en todo momento y no solo cuando se pasa de la card --&gt; Diseño y diversos js que lo reinician<br>isml:<br>&nbsp;- storePage<br>&nbsp;- threRowStorePage<br>js:<br>&nbsp;- Configurator.js<br><br>PDP --&gt; Hacer que aparezca en todo momento --&gt; Diseño<br>--&gt; Añadir add to cart en el sticky<br><br>PDP Dispositius<br>--&gt; Si està seleccionat convergent o movil, ancla al carrusel de les tarifes<br>--&gt; Si està seleccionat Sin tarifa, continua<br>isml:<br>productDetails<br>productDetailsTariff<br><br>COBERTURA --&gt; Hacer que aparezca todo el rato --&gt; Diseño<br>--&gt; Añadir comprobar cobertura en el sticky<br>isml:<br>address<br>js:<br>addressHelper.js<br><br>Upgrade????<br><br>CART --&gt; Hacer que aparezca todo el rato --&gt; Diseño<br>--&gt; Añadir botón Continuar<br>isml:<br>orderConfiguration<br>cartCdt<br>cartConvergent<br>cartFixed<br>cartMarketplace<br>cartMobile<br>cartRenove<br><br>js:<br>cartHelpers.js<br>cartHelpersConvergent.js<br>cartHelpersFixed.js<br>cartHelpersMarketplace.js<br>cartHelpersMobile.js<br>cartHelpersRenove.js<br><br>CHECKOUT --&gt; Hacer que aparezca todo el rato --&gt; Diseño<br>--&gt; Añadir botón continuar en todos los steps<br>isml:<br>checkout<br><br>Altres --&gt; Sembla que no aplica, són pàgines de cerca<br>allSearchHeaders<br><br><br>data-observe-intersecting --&gt; S'ha de treue? --&gt; Falta disseny per saber com funcionarà<br><br>3MD per apartat i 5MD pel cart = 18MD = 4*3 + 5*1<br>Pruebas unitarias: 4MD</div></div>",
+    "color": "#ff7961",
+    "open": false,
+    "pinned": true
+  },
+  {
+    "id": "mjh6u68z703dxw8hmn7",
+    "title": "Migración CONTRATACIÓN LLAA",
+    "tags": [
+      "PRJ",
+      "R1",
+      "R2"
+    ],
+    "content": "https://si-cognitio.atlassian.net/wiki/spaces/MGNCNL/pages/378798127/EP01+-+LLAA+de+Fibra<br><br>Fibra --&gt; Jaimez<br>Go --&gt; Alejandro<br>Convergente --&gt; Cesar &amp; Nerea<br><br>---------------------------------------------------------------------------------------------------------------<br><br>INJECCIÓ<br><br>pràcticament igual que la resta de casuistiques d'alta<br><br>- account<br>- punt instalació per 2a vivienda<br>- una cosa<br>- compte facturació per 2a vivienda es reutilitza<br>- shipping també aplica quan hi ha envio (SIM, device)<br>- actes comercials iguals que els de captació<br>- quotes igual que a capta<br>- descomptes multilinia<br>- S'afegeix el producte linia incluida en pack si és una que té desactivada<br><br>---------------------------------------------------------------------------------------------------------------<br><br>2A VIVIENDA<br><br>- Canviar tarifes pàgina Internet 2a vivienda per les noves i no per CA<br>- Els 3 punts d'accés alternatius, són editorials<br>- Han de poder tindre promos<br>- Si no té cobertura, nova pàgina de PD de no cobertura, es pot editar la que s'ha posat i un botó per tornar a la distributiva --&gt; CheckCoverage-NoCoverage<br>- Quan canvia la tarifa al Cart, s'obre el desplegable i només pot triar l'altre de segunda vivienda --&gt; Mirar d'on ho treu<br>- No té SVAs<br>- Porta des de Jazztel, msg de mantindre router --&gt; Funcionalitat existent, que es mantingui<br>- Si vol mantindre linia, s'ha de posar el número i el formulari per si no és el titular<br>- No ha de tindre check de comunicacions comercials<br>- PLP i PDP logado i ha de ser convergente --&gt; Sinó redirigeix a la distributiva --&gt; PLP middleware intermig?<br>- No es poden afegir més LLAA de fibra en el mateix procés de compra, màxim de LLAA a afegir són 4, llavors no s'ha de mostrar a la distributiva i en cas d'arribar a a la PLP o la PDP redirigir a la distributiva<br>- No s'ha de demanar ni token pin ni KYC<br>- Falta definir CdV --&gt; Ha de ser com a Altamira<br>- medició? --&gt; Falta per definir a la HU<br>- S'han de crear les 2 tarifes a Erebor --&gt; Demanar DPS a Teide<br><br>Estimació: 8MD<br>Estimació catàleg: 4MD<br>Proves unitaries: 2MD<br>Proves funcionals: 2MD<br><br>---------------------------------------------------------------------------------------------------------------<br><br>GO ADICIONALES<br><br>- Nova pàgina per clients Go logats --&gt; Nou endpoint? --&gt; AddAdditionalsGo --&gt; S'ha d'estar logat i si no compleix les condicions (ser una tarifa go i no tindre més de 5 LLAA contractades, etc?), redirigir a la distributiva<br>- Cintillo groc de sobre és genèric<br>- Al afegir, si la linia més barata és la del cart, s'aplica el 20%, en cas contrari, es posa el missatge que el descompte s'aplica a la linia ja contractada<br>- Com sé quines tarifes té el client i quina és la més barata? --&gt; Tariff mapping? amb l'ID que rebem?<br>- Màxim 5 LLAA (contant les que ja té contractades) --&gt; S'afegeixen igual que es fa ara amb el modal que s'obre des de l'esquerra<br>- Es pot afegir un dispositiu per cada LLAA --&gt; Tarifes antigues també?<br>- Afegir nou atribut al COT de CustomerDistributiveSegment, al SecondColumnOptions --&gt; 9.Account-AddAdditionalsGo / Contratar más líneas móviles [go]<br>- Al COT de pospago de CustomerDistributiveSegment canviar la segona columna l'antic de contractar més linies pel nou<br>- Afegir URL Redirect --&gt; Account-nouEndpoint / la url que sigui<br>- passar tabpanels com a la PDP --&gt; Totes per tothom, no?<br>- Màxim 5 LLAA per client --&gt; Deixa d'apareixer el banner d'afegir linia adicional --&gt; Controlar a la distributiva que no surti el link per afegir més LLAA si ja les té totes<br>- Al afegir més linies adicionals, ha de funcionar igual que està funcionant ara<br>- Per cada portabilitat de la que no és titular s'ha d'enviar un token, pels que és titular, un token al final per tots, té un PRJ per fer això<br>- Enviar token a partir de risc mig amb terminal --&gt; Per confirmar<br><br>Nova pàgina<br>Control accés logat<br>Control accés tarifa amb LLAA per afegir<br>Redirecció distributiva<br>Enviar tarifes a mostrar<br><br>Aplicació promo<br>Comprovar tarifa més barata<br>Aplicar promo o mostrar missatge que s'aplica a una ja existent<br><br>Cart<br>Control LLAA existents<br><br>Token pin<br>Per determinar<br><br>Estimació: 6MD<br>Proves unitaries: 1MD<br>Proves funcionals: 2MD<br><br>---------------------------------------------------------------------------------------------------------------<br><br>LINIA ADICIONAL CONVERGENTE<br><br>- Nova pàgina amb les tarifes adicionals --&gt; Igual que la de go --&gt; Nou endpoint i configurar CO distributiva i URL Rules<br>- Són les mateixes tarifes que les adicionals?<br>- Per bambú i per no bambú es mostren tarifes diferents --&gt; Crear un mapa de tarifes antigues i quines adicionals s'han d'oferir per cada una<br>- S'han de crear les tarifes de les linies adicionals no bambú --&gt; Falta una llista de quines són<br>- Per injectar cal la info del pack principal --&gt; Està la info al tariff mapping<br>- Demanar DPS a teide de totes les tarifes que hem de crear<br>- Al afegir LLAA s'ha de mantindre la funcionalitat de EREBOR-25454<br>- Seguir configuració del catàleg de LLAA a mostrar<br>- Mostrar les LLAA que estiguin configurades per catàleg, si una només ofereix opció de la linia a 0 ct/min, no mostrar la ilimitada<br>- Preus de dispositius per LLAA antigues? --&gt; No tenim les tarifes antigues a la OT --&gt; No oferir afegir dispositiu en aquestes linies<br>- En el cas que hi ha més d'una LLAA per activar, quina s'activa --&gt; La de 0 ct/min --&gt; Més a baix a la pantalla apareixen les altres per si les vol afegir enlloc de la 0ct<br>- Necessitem saber quines linies no estan activades<br>- Quan es tanca el popup si tanques es queda al listing de tarifes i si vas al botó va a la PDP de la linia que sigui amb el botó Activar --&gt; Després vas al cart<br>- Comprovar si la LLAA existeix a EREBOR i sinó teleweb amb un msg<br>- Oferim només tarifes que tenim, no en crearem de noves. Si la tarifa no està al tariff mapping, click to call<br><br>Crear tarifes noves<br>Totes les LLAA que es puguin contractar que no estiguin a EREBOR<br>Crear una categoria per les LLAA de tarifes velles?<br><br>Configuració:<br>Mapping tarifes velles amb tarifes de LLAA a mostrar<br><br>Pàgina nova<br>Comprovar que està logat i que compleix les condicions per contractar LLAA (client convergent i que no tingui 5 LLAA contractades)<br>Si és tarifa erebor, mostrar les LLAA que pot tindre la tarifa<br>Si no és tarifa erebor, fa falta un llistat de tarifes a mostrar per cada tarifa contractada que pugui haver<br>Si es detecta que té LLAA per activar, mostrar missatge amb botó que porti a la LLAA per activarla o tancar per seguir en aquesta pàgina<br>afegir al possibleAdditionalLines la info necessaria perquè es puguin recorrer i pintar una card de tarifa<br><br>PDP<br>Comprovar que està logat i que compleix les condicions per contractar LLAA (client convergent i que no tingui 5 LLAA contractades)<br>Si és una LLAA desactivada, canviar el botó \"Lo quiero\" per \"Activar mi linea\" i canviar preu a 0€ (El preu s'ha de mantindre tot el procés de CO<br><br>Cart<br>Si es clica \"Cambiar\" es mostren les LLAA que pugui contractar menys la que ha seleccionat<br><br>Injecció<br>Obtenir info de la linia principal<br>Veure com s'ha d'injectar<br><br>Estimació: 10MD<br>Estimació catàleg: 2MD/tarifa<br>Proves unitaries: 3MD<br>Proves funcionals: 3MD<br><br><br>---------------------------------------------------------------------------------------------------------------<br><br>- La pàgina va per PD --&gt; internet-segunda-vivienda --&gt; El client s'ha de logar per entrar a aquesta pàgina? --&gt; Que passa si no té una tarifa que permeti contractar-ho?<br>• Com sabem quines tarifes ho poden contractar?<br>- Per accedir a la PDP d'aquestes tarifes, s'ha d'estar logat? --&gt; Control al Lo Quiero de si pot contractar la tarifa?<br>- Les tarifes ara són CA --&gt; S'han de crear les 2 tarifes i posar-les al PD --&gt; Això no pot ser un delta<br>- Nou atribut a la categoria o al producte per detectar a quina pàgina de no cobertura va? --&gt; CheckCoverage-NoCoverage --&gt; ID de la pàgina a mostrar?<br>- Afecta a Teide per injecció?",
+    "color": "#ccff90",
+    "open": false,
+    "pinned": true
+  },
+  {
+    "id": "mjh6s9mkvirlk5umoli",
+    "title": "XGSPON 2Gb i 5Gb",
+    "tags": [
+      "PRJ",
+      "R3"
+    ],
+    "content": "Raul Cruz Andreu\n- https://si-cognitio.atlassian.net/wiki/spaces/PCDXOE/pages/440041659/HD01.HT01+-+Captaci+n+EREBOR\n\n--------------- Tasques ---------------\n\nCatàleg: 9 MD\nPriorización XGSPON capta: 2MD\nPriorización XGSPON CDT: 3MD\nTarifa 5Gb: 2MD\nCDV: 1MD\n\n--------------- Tarifes que aplica ---------------\n\nc0220 --> No té 2 gb\nc0410\nc0420\nc0300\nc0301\nc0302\nc0401\nc0402\nc0403\nc0404",
+    "color": "#ffcc80",
+    "open": false,
+    "pinned": true
+  },
+  {
+    "id": "mjipzz6chpw9ym0t2c",
+    "title": "FTTH_TRO",
+    "tags": [
+      "PRJ"
+    ],
+    "content": "<div><b>JIRA:</b></div><div>https://jira.si.orange.es/browse/EREBOR-26135</div>",
+    "color": "#4dd0e1",
+    "open": false,
+    "pinned": false
+  },
+  {
+    "id": "mjh5kfgga7vbdu6vcgg",
+    "title": "GLOSARI",
+    "tags": [],
+    "content": "- XGSPON --> X = 10 | G = Gigabit | S = Simetric | PON = tecnología de red de fibra óptica pasiva \n- FTTH --> Fiber To The Home  \n  • NEBA --> Nuevo servicio Ethernet Banda Ancha --> Alquilado de otra compañía   \n  • VULA --> Servicio de acceso virtual de banda ultra ancha (Virtual Unbundled Local Access) --> servicio mayorista que permite a otras empresas alquilar el tramo de red   \n  • XPJ --> Identificador de xarxa específic utilitzat per Orange (Xarxes pròpies d'Orange)   \n  • SM --> Monomodo --> Distàncies llargues amb menys pèrdua de senyal --> La més típica   \n  • MM --> Multimodo --> Distàncies curtes --> LAN o instalacions antigues   \n  • VOD --> Video On Demand --> Connexions amb vídeo d'alta qualitat   \n  • GenericaMutualizada --> conexión de fibra óptica de alta calidad donde el servicio final lo proporciona un operador, pero la infraestructura física por la que viajan los datos pertenece a otro operador",
+    "color": "#b388ff",
+    "open": false,
+    "pinned": false
+  },
+  {
+    "id": "mjh6ybbylus2ogcafo",
+    "title": "USUARIS",
+    "tags": [],
+    "content": "• 79737139A/SQA180624/654889901/ - Go Up<br>• 87698736N/SQA270624/696041165/ - Futbol Total 4<br>• 83273366A/SQA230724/655567831/ - Go Up<br>• X0493687S/SQA240724/685006883/ -  Love Cine y Series Total 4<br>• 98353354H/120724SQA/664042478/ - Go Up<br>• 83964666S/SQA240724/655205775/ - Go Max TV Inicial<br>• 04166014R/651064972/SQA54321/ --&gt; Peach<br>• 13845946S/625653385/SQA54321/ --&gt; Peach<br>• 84050193M/SQA24123/ --&gt; 2a2 ENT1<br>• 645524559/SQA24123/ --&gt; Go<br>• 619665713/SQA24123/ --&gt; Go Básico --&gt; ASE<br>• 616472326/SQA020224/ --&gt; ASE<br>• 605553870/SQA123456/ --&gt; ASE<br>• 683158792/SQA24123/ --&gt; ASE<br>• 94921698P/SQA12345/ --&gt; ASE --&gt; Go<br>• 648929162/SQA280125/ --&gt; ASE --&gt; Love<br>• 22125948V/SQA54321/ --&gt; ENT1<br>• 665646685/SQA12345/ --&gt; Love Cine y Series total 2 --&gt; ENT1<br>• 20648403S/SQA12345/ --&gt; ENT2<br>• 93666723M/SQA190225/ --&gt; ASE --&gt; Love<br>• 625372551/SQA54321/ --&gt; ENT2<br><br>Love - lineas suspendidas: <br>• 611545257/SQA25123<br>• 637108808/SQA24123",
+    "color": "#ea80fc",
+    "open": true,
+    "pinned": false
+  },
+  {
+    "id": "mjh6rhlvxqnvjtaatg",
+    "title": "PRJs",
+    "tags": [],
+    "content": "PRJ-10476 - Cupido - landing personalizada Bambú  🡪 PaP R11-2025\nPRJ-10688 - Nuevos Planes Max 🡪 PaP R11-2025\nPRJ-09217 - Validación de la num de la portabilidad mediante TOKEN  🡪 PaP R11-2025\nPRJ-10598 - Mejoras de datos calidad de Direcciones: EREBOR 🡪 PaP R11-2025\nPRJ-10445 – Fase 1 Migración infraestructura y SAS 🡪 PaP R01-2026\nPRJ-10327 – RT PORTOS 🡪 PaP R01-2026\nPRJ-10990 - Migración Contratación LLAA Go y Love + internet 2ª Vivienda🡪 PaP R01-2026, pendiente de confirmar  https://jira.si.orange.es/browse/EREBOR-25484",
+    "color": "#ffff8d",
+    "open": false,
+    "pinned": false
+  },
+  {
+    "id": "mjh6wiy5l0md10l9tn",
+    "title": "COMANDES NETEJAR FITXERS GIT",
+    "tags": [],
+    "content": "git clean -d -x -f -e dw.json\nnpm i --package-lock-only\nnpm install && node build-deploy/installHandling/install.js",
+    "color": "#81c784",
+    "open": false,
+    "pinned": false
+  },
+  {
+    "id": "mjh6x0x62wuvlzwryxx",
+    "title": "PRODUCTS PROMOS TARIFAS",
+    "tags": [],
+    "content": "PROMOS TARIFAS\n - Convergente --> PP\n - Movil --> Tarifa\n - Fijo --> Tecnologia",
+    "color": "#64b5f6",
+    "open": false,
+    "pinned": false
+  },
+  {
+    "id": "mjh6zatgroqrmkqm5n",
+    "title": "MISCELANIA",
+    "tags": [],
+    "content": "- https://cert.staging.eu01.orange.demandware.net/on/demandware.servlet/webdav/Sites/Cartridges --&gt; Pujades stg<br>- Pwd bazaar voice staging service --&gt; password: Ii3fiypzAhD8~PHLLJfj<br>- nslookup sourcerepository-tc.shared-nonprod.cloud.si.orange.es<br>- pwd MKP: futMArk3tplc<br>- 911 11 67 00 (reset passwords Orange)<br><br>- Entrar Teams Orange --&gt; https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fchannel%2F19%3A3d975b9379f94b7896a755ae557a1fd4%40thread.tacv2%2FGeneral%3FgroupId%3D10965c9a-84ff-458a-b1ce-f196f44ed1ba%26tenantId%3D90c7a20a-f34b-40bf-bc48-b9253b6f5d20&amp;type=channel&amp;deeplinkId=76ac4dce-e680-4114-9fed-949f1f8ea15e&amp;directDl=true&amp;msLaunch=true&amp;enableMobilePage=true&amp;suppressPrompt=true",
+    "color": "#ff5252",
+    "open": false,
+    "pinned": false
+  },
+  {
+    "id": "mjh7069w62axsigk6qt",
+    "title": "INICIAR SB - DRACARYS",
+    "tags": [],
+    "content": "CERTIFICATS\n- oauth --> orangeopenapi_eshopfrontendosp_nonprod.p12 --> osKCCZyuvyWdaIRa --> Host: apipub-erebor-uat2.orange.es\n- jerarquia --> jerarquia.crt\n- apipub-erebor --> apipub-erebor-aseg.orange.es.crt\n\nPWD SERVEIS\n- orange.oauth --> c0EDnT26mF1HvVtD\n- orange.tidEshopLightOrderInsert -->EREBUSER / c8Nl8377Hci9",
+    "color": "#f06292",
+    "open": false,
+    "pinned": false
+  }
+]
