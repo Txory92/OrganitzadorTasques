@@ -587,7 +587,7 @@ async function loadWorkspaceFromDrive(workspaceName) {
 
         if (localStorageValue !== null) {
             localStorage.setItem(workspaceName + "_beforeDriveImport", localStorageValue);
-            showDriveImportRecovery(workspaceName);
+            showDriveImportRecovery(workspaceName, localStorageValue, driveCards);
         }
 
         cards = driveCards;
@@ -604,7 +604,48 @@ async function loadWorkspaceFromDrive(workspaceName) {
     }
 }
 
-function showDriveImportRecovery(workspaceName) {
+function getDriveImportChanges(localCards, driveCards) {
+    const localById = new Map(localCards.map(card => [card.id, card]));
+    const driveById = new Map(driveCards.map(card => [card.id, card]));
+    const changes = { added: [], removed: [], changed: [] };
+
+    driveCards.forEach(driveCard => {
+        const localCard = localById.get(driveCard.id);
+        if (!localCard) {
+            changes.added.push(driveCard.title || "Sense títol");
+            return;
+        }
+
+        const localComparable = JSON.stringify({
+            title: localCard.title,
+            tags: localCard.tags,
+            content: localCard.content,
+            color: localCard.color,
+            pinned: localCard.pinned
+        });
+        const driveComparable = JSON.stringify({
+            title: driveCard.title,
+            tags: driveCard.tags,
+            content: driveCard.content,
+            color: driveCard.color,
+            pinned: driveCard.pinned
+        });
+
+        if (localComparable !== driveComparable) {
+            changes.changed.push(driveCard.title || "Sense títol");
+        }
+    });
+
+    localCards.forEach(localCard => {
+        if (!driveById.has(localCard.id)) {
+            changes.removed.push(localCard.title || "Sense títol");
+        }
+    });
+
+    return changes;
+}
+
+function showDriveImportRecovery(workspaceName, localStorageValue, driveCards) {
     if (document.getElementById("driveImportRecovery")) return;
 
     const banner = document.createElement("div");
@@ -613,6 +654,34 @@ function showDriveImportRecovery(workspaceName) {
 
     const message = document.createElement("span");
     message.textContent = "S'ha carregat una versió més nova de Drive. La versió local anterior es conserva com a còpia.";
+
+    let localCards = [];
+    try {
+        localCards = JSON.parse(localStorageValue);
+    } catch {
+        localCards = [];
+    }
+
+    const changes = getDriveImportChanges(localCards, driveCards);
+    const details = document.createElement("details");
+    details.className = "driveImportChanges";
+
+    const summary = document.createElement("summary");
+    const totalChanges = changes.added.length + changes.removed.length + changes.changed.length;
+    summary.textContent = totalChanges ? `Veure ${totalChanges} canvi${totalChanges === 1 ? "" : "s"}` : "No s'han detectat canvis de contingut";
+    details.appendChild(summary);
+
+    const appendChangeGroup = (label, titles, className) => {
+        if (!titles.length) return;
+        const group = document.createElement("div");
+        group.className = `driveImportChangeGroup ${className}`;
+        group.textContent = `${label} (${titles.length}): ${titles.slice(0, 8).join(", ")}${titles.length > 8 ? "..." : ""}`;
+        details.appendChild(group);
+    };
+
+    appendChangeGroup("Afegides a Drive", changes.added, "added");
+    appendChangeGroup("Eliminades de Drive", changes.removed, "removed");
+    appendChangeGroup("Modificades a Drive", changes.changed, "changed");
 
     const restoreButton = document.createElement("button");
     restoreButton.type = "button";
@@ -641,7 +710,7 @@ function showDriveImportRecovery(workspaceName) {
         banner.remove();
     };
 
-    banner.append(message, restoreButton, keepButton);
+    banner.append(message, details, restoreButton, keepButton);
     document.body.insertBefore(banner, document.body.firstChild);
 }
 

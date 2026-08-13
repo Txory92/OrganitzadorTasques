@@ -150,6 +150,29 @@ body {
     font-weight: 600;
 }
 
+.driveImportChanges {
+    flex: 0 0 100%;
+    max-width: 780px;
+    padding: 2px 0;
+}
+
+.driveImportChanges summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.driveImportChangeGroup {
+    margin-top: 5px;
+    padding: 7px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.5);
+    overflow-wrap: anywhere;
+}
+
+.driveImportChangeGroup.added { border-left: 3px solid #15803d; }
+.driveImportChangeGroup.removed { border-left: 3px solid #dc2626; }
+.driveImportChangeGroup.changed { border-left: 3px solid #2563eb; }
+
 [data-theme="dark"] .syncConflictBanner {
     background: #3b2b18;
     color: #ffe0b2;
@@ -160,6 +183,10 @@ body {
     background: #2b2014;
     color: #ffe0b2;
     border-color: #f0a544;
+}
+
+[data-theme="dark"] .driveImportChangeGroup {
+    background: rgba(0, 0, 0, 0.2);
 }
 
 h2 {
