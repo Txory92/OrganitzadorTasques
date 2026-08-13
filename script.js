@@ -165,9 +165,11 @@ async function ensureAppFolder() {
         console.log("🔍 Buscant carpeta OrganitzadorTasques...");
         
         // Buscar si ja existeix la carpeta
-        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='OrganitzadorTasques' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive&fields=files(id)&pageSize=1&access_token=${googleAccessToken}`;
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='OrganitzadorTasques' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive&fields=files(id)&pageSize=1`;
         
-        const searchRes = await fetch(searchUrl);
+        const searchRes = await fetch(searchUrl, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
         
         if (!searchRes.ok) {
             throw new Error(`Error en cerca: ${searchRes.status} ${searchRes.statusText}`);
@@ -186,7 +188,7 @@ async function ensureAppFolder() {
         console.log("📁 Carpeta no existeix. Creant-la...");
         
         // Crear carpeta nova
-        const createUrl = `https://www.googleapis.com/drive/v3/files?access_token=${googleAccessToken}`;
+        const createUrl = `https://www.googleapis.com/drive/v3/files`;
         const folderMetadata = {
             name: 'OrganitzadorTasques',
             mimeType: 'application/vnd.google-apps.folder'
@@ -194,7 +196,10 @@ async function ensureAppFolder() {
 
         const createRes = await fetch(createUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${googleAccessToken}`
+            },
             body: JSON.stringify(folderMetadata)
         });
 
@@ -245,10 +250,12 @@ async function saveWorkspaceToDrive(workspaceName) {
         
         // Buscar si ja existeix el fitxer a la carpeta
         const query = `name='${fileName}' and trashed=false and mimeType='application/json'${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
-        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id)&pageSize=1&access_token=${googleAccessToken}`;
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id)&pageSize=1`;
         
         console.log("🔍 Buscant fitxer a Drive...");
-        const searchRes = await fetch(searchUrl);
+        const searchRes = await fetch(searchUrl, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
         
         if (!searchRes.ok) {
             throw new Error(`Error buscant fitxer: ${searchRes.status} ${searchRes.statusText}`);
@@ -264,10 +271,13 @@ async function saveWorkspaceToDrive(workspaceName) {
         if (fileId) {
             // ACTUALITZAR fitxer existent
             console.log("📝 Actualitzant fitxer existent...");
-            const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&access_token=${googleAccessToken}`;
+            const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
             const updateRes = await fetch(updateUrl, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${googleAccessToken}`
+                },
                 body: fileContent
             });
             
@@ -290,13 +300,16 @@ async function saveWorkspaceToDrive(workspaceName) {
                 console.log("📁 Fitxer anirà a carpeta:", driveFolderId);
             }
 
-            const createUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&access_token=${googleAccessToken}`;
+            const createUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
             const boundary = '===============7330845974216740156==';
             const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${fileContent}\r\n--${boundary}--`;
 
             const createRes = await fetch(createUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+                headers: { 
+                    'Content-Type': `multipart/related; boundary=${boundary}`,
+                    'Authorization': `Bearer ${googleAccessToken}`
+                },
                 body: body
             });
 
@@ -386,8 +399,22 @@ async function loadWorkspaceFromDrive(workspaceName) {
         if (driveModifiedTime > localTimestamp) {
             // Drive és més recent, descarregar
             console.log(`📥 Descarregant workspace "${workspaceName}" de Drive...`);
-            const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${googleAccessToken}`;
-            const fileRes = await fetch(fileUrl);
+            
+            // Usar Authorization header en comptes de token a URL (evita CORS issues)
+            const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+            const fileRes = await fetch(fileUrl, {
+                headers: {
+                    'Authorization': `Bearer ${googleAccessToken}`
+                }
+            });
+            
+            if (fileRes.status === 401) {
+                console.error("❌ Token expirat");
+                googleAccessToken = null;
+                driveReady = false;
+                localStorage.removeItem("googleAccessToken");
+                return null;
+            }
             
             if (!fileRes.ok) {
                 throw new Error(`Error descarregant fitxer: ${fileRes.status} ${fileRes.statusText}`);
@@ -1954,9 +1981,11 @@ async function loadAllDriveWorkspaces() {
     try {
         // Buscar fitxers JSON a la carpeta (si existeix)
         const query = `mimeType='application/json' and trashed=false${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
-        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=100&fields=files(id,name,modifiedTime)&access_token=${googleAccessToken}`;
+        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=100&fields=files(id,name,modifiedTime)`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
         const data = await res.json();
 
         const files = data.files || [];
