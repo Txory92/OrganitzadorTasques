@@ -603,7 +603,11 @@ async function loadWorkspaceFromDrive(workspaceName) {
 
         if (driveModifiedTime > localTimestamp) {
             // Drive és més recent, descarregar
+            const localDate = new Date(localTimestamp).toLocaleString('ca-ES');
+            const driveDate = new Date(driveModifiedTime).toLocaleString('ca-ES');
             console.log(`📥 Descarregant workspace "${workspaceName}" de Drive...`);
+            console.log(`   📅 Drive: ${driveDate} (més recent)`);
+            console.log(`   📅 Local: ${localDate}`);
             
             // Usar Authorization header en comptes de token a URL (evita CORS issues)
             const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
@@ -641,7 +645,13 @@ async function loadWorkspaceFromDrive(workspaceName) {
                 return null;
             }
         } else {
+            const localDate = new Date(localTimestamp).toLocaleString('ca-ES');
+            const driveDate = new Date(driveModifiedTime).toLocaleString('ca-ES');
+            const diffMinutes = Math.round((localTimestamp - driveModifiedTime) / 60000);
+            
             console.log(`ℹ️ Dades locals més recents que Drive. No sincronitzant.`);
+            console.log(`   📅 Local:  ${localDate} (més recent, +${diffMinutes} minuts)`);
+            console.log(`   📅 Drive:  ${driveDate}`);
             return null;
         }
 
