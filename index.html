@@ -21,6 +21,11 @@
         <div id="workspaceDropdown" class="hidden"></div>
     </div>
 
+    <div id="driveSyncStatus" class="driveSyncStatus" role="status" aria-live="polite">
+        <span class="driveSyncStatusDot"></span>
+        <span class="driveSyncStatusText">Només local</span>
+    </div>
+
     <div id="extraMenuContainer">
         <button id="extraMenuBtn" class="iconHeader">⚙</button>
         <div id="extraMenu" class="hidden">
@@ -28,7 +33,7 @@
             <button id="exportBtn" class="menuItem">Exportar</button>
             <button id="importBtn" class="menuItem">Importar</button>
             <button id="googleLoginBtn" class="menuItem">Connectar</button>
-            <button id="googleLogoutBtn" class="menuItem hidden">Desconnectar <span id="syncStatus" class="syncBadge" style="display:none;">✓</span></button>
+            <button id="googleLogoutBtn" class="menuItem hidden">Desconnectar</button>
         </div>
     </div>
 </header>

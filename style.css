@@ -78,6 +78,49 @@ body {
     display: none !important;
 }
 
+.driveSyncStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.driveSyncStatusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7b8794;
+}
+
+.driveSyncStatus[data-state="pending"] .driveSyncStatusDot {
+    background: #f59e0b;
+}
+
+.driveSyncStatus[data-state="syncing"] .driveSyncStatusDot {
+    background: #2563eb;
+    animation: driveSyncPulse 1s ease-in-out infinite;
+}
+
+.driveSyncStatus[data-state="synced"] .driveSyncStatusDot {
+    background: #16a34a;
+}
+
+.driveSyncStatus[data-state="error"] .driveSyncStatusDot {
+    background: #dc2626;
+}
+
+@keyframes driveSyncPulse {
+    50% { opacity: 0.35; transform: scale(0.75); }
+}
+
 .syncConflictBanner {
     position: fixed;
     z-index: 10000;
