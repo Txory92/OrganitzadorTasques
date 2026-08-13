@@ -18,6 +18,7 @@ const GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.file";
 
 let googleAuthenticated = false;
 let driveReady = false;
+let googleAccessToken = null;  // Guardar el token d'accés
 
 
 /* ------------------------------------------------------------
@@ -118,9 +119,9 @@ function getNextColorInOrder(color){
 }
 
 function loadGapiClient() {
-    gapi.load("client:auth2", () => {
-        console.log("GAPI carregat correctament.");
-    });
+    // Ya no es necesario cargar gapi.client
+    // Usamos la REST API directamente con fetch()
+    console.log("Usando REST API de Google Drive");
 }
 
 async function waitForGapiClient() {
@@ -154,11 +155,11 @@ function save() {
 
 
 /* ============================================================
-   GOOGLE DRIVE SYNC — GUARDAR WORKSPACE
+   GOOGLE DRIVE SYNC — GUARDAR WORKSPACE (REST API)
 ============================================================ */
 
 async function saveWorkspaceToDrive(workspaceName) {
-    if (!driveReady || !gapi.client.drive) return;
+    if (!driveReady || !googleAccessToken) return;
 
     try {
         const syncStatus = document.getElementById("syncStatus");
@@ -171,55 +172,49 @@ async function saveWorkspaceToDrive(workspaceName) {
         const fileContent = JSON.stringify(cards);
         
         // Buscar si ja existeix el fitxer
-        const query = `name='${fileName}' and trashed=false and mimeType='application/json'`;
-        const searchRes = await gapi.client.drive.files.list({
-            q: query,
-            spaces: 'drive',
-            fields: 'files(id)',
-            pageSize: 1
-        });
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false and mimeType='application/json'&spaces=drive&fields=files(id)&pageSize=1&access_token=${googleAccessToken}`;
+        
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
 
         let fileId = null;
-        if (searchRes.result.files && searchRes.result.files.length > 0) {
-            fileId = searchRes.result.files[0].id;
+        if (searchData.files && searchData.files.length > 0) {
+            fileId = searchData.files[0].id;
         }
-
-        // Guardar metadata (amb timestamp per a sincronització)
-        const metadata = {
-            name: fileName,
-            mimeType: 'application/json',
-            modifiedTime: new Date().toISOString(),
-            timestamp: Date.now()
-        };
 
         if (fileId) {
             // ACTUALITZAR fitxer existent
-            const updateRes = await gapi.client.drive.files.update({
-                fileId: fileId,
-                resource: metadata,
-                media: {
-                    mimeType: 'application/json',
-                    body: fileContent
-                },
-                fields: 'id'
+            const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&access_token=${googleAccessToken}`;
+            await fetch(updateUrl, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: fileContent
             });
             console.log(`✅ Workspace "${workspaceName}" actualitzat a Google Drive`);
         } else {
             // CREAR fitxer nou
-            const createRes = await gapi.client.drive.files.create({
-                resource: metadata,
-                media: {
-                    mimeType: 'application/json',
-                    body: fileContent
-                },
-                fields: 'id'
+            const metadata = {
+                name: fileName,
+                mimeType: 'application/json'
+            };
+
+            const createUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&access_token=${googleAccessToken}`;
+            const boundary = '===============7330845974216740156==';
+            const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${fileContent}\r\n--${boundary}--`;
+
+            const createRes = await fetch(createUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+                body: body
             });
-            fileId = createRes.result.id;
-            localStorage.setItem(workspaceName + "_driveId", fileId);
-            console.log(`✅ Workspace "${workspaceName}" creat a Google Drive`);
+
+            const createData = await createRes.json();
+            if (createData.id) {
+                localStorage.setItem(workspaceName + "_driveId", createData.id);
+                console.log(`✅ Workspace "${workspaceName}" creat a Google Drive`);
+            }
         }
 
-        // Ocultar indicator amb delay
         if (syncStatus) {
             syncStatus.classList.remove("syncing");
             setTimeout(() => {
@@ -243,42 +238,36 @@ async function saveWorkspaceToDrive(workspaceName) {
 
 
 /* ============================================================
-   GOOGLE DRIVE SYNC — CARREGAR WORKSPACE
+   GOOGLE DRIVE SYNC — CARREGAR WORKSPACE (REST API)
 ============================================================ */
 
 async function loadWorkspaceFromDrive(workspaceName) {
-    if (!driveReady || !gapi.client.drive) return null;
+    if (!driveReady || !googleAccessToken) return null;
 
     try {
         const fileName = `${workspaceName}.json`;
-        const query = `name='${fileName}' and trashed=false and mimeType='application/json'`;
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='${fileName}' and trashed=false and mimeType='application/json'&spaces=drive&fields=files(id,modifiedTime)&pageSize=1&access_token=${googleAccessToken}`;
         
-        const searchRes = await gapi.client.drive.files.list({
-            q: query,
-            spaces: 'drive',
-            fields: 'files(id, modifiedTime)',
-            pageSize: 1
-        });
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
 
-        if (!searchRes.result.files || searchRes.result.files.length === 0) {
+        if (!searchData.files || searchData.files.length === 0) {
             console.log(`⚠️ Workspace "${workspaceName}" no trobat a Drive`);
             return null;
         }
 
-        const fileId = searchRes.result.files[0].id;
-        const driveModifiedTime = new Date(searchRes.result.files[0].modifiedTime).getTime();
+        const fileId = searchData.files[0].id;
+        const driveModifiedTime = new Date(searchData.files[0].modifiedTime).getTime();
 
         // Comparar timestamps per detectar conflictes
         const localTimestamp = parseInt(localStorage.getItem(workspaceName + "_timestamp")) || 0;
 
         if (driveModifiedTime > localTimestamp) {
             // Drive és més recent, descarregar
-            const fileRes = await gapi.client.drive.files.get({
-                fileId: fileId,
-                alt: 'media'
-            });
+            const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${googleAccessToken}`;
+            const fileRes = await fetch(fileUrl);
+            const driveCards = await fileRes.json();
 
-            const driveCards = JSON.parse(fileRes.body);
             cards = driveCards;
             localStorage.setItem(currentWorkspace, JSON.stringify(cards));
             localStorage.setItem(workspaceName + "_timestamp", Date.now().toString());
@@ -1657,6 +1646,31 @@ function deleteWorkspace(name) {
 }
 
 function initGoogleAuth() {
+    // Verificar si ja hi ha un token a la URL (per al Implicit Flow)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    
+    if (accessToken) {
+        googleAccessToken = accessToken;
+        driveReady = true;
+        
+        // Netejar la URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        document.getElementById("googleLoginBtn").classList.add("hidden");
+        document.getElementById("googleLogoutBtn").classList.remove("hidden");
+        
+        loadAllDriveWorkspaces();
+        loadWorkspaceFromDrive(currentWorkspace).then(() => {
+            initCards();
+            applySearchAndFilterToDOM();
+        });
+        startPeriodicSync();
+        
+        console.log("✅ Connectat a Google Drive. Sincronització activada.");
+        return;
+    }
+    
     google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleLogin
@@ -1676,43 +1690,25 @@ async function handleGoogleLogin(response) {
     googleAuthenticated = true;
     google.accounts.id.disableAutoSelect();
 
-    // Esperar fins que gapi estigui carregat
-    if (!gapi.client) {
-        console.warn("Esperant GAPI...");
-        await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    if (!gapi || !gapi.client) {
-        alert("Google API no ha carregat. Prova de refrescar la pàgina.");
-        return;
-    }
-
-    await gapi.client.init({
-        clientId: GOOGLE_CLIENT_ID,
-        scope: GOOGLE_SCOPES,
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
-    });
-
-    driveReady = true;
-
-    document.getElementById("googleLoginBtn").classList.add("hidden");
-    document.getElementById("googleLogoutBtn").classList.remove("hidden");
-
-    // Sincronitzar workspaces del Drive
-    await loadAllDriveWorkspaces();
-
-    // Sincronitzar el workspace actual si existeix al Drive
-    const driveWorkspaces = await loadAllDriveWorkspaces();
-    if (driveWorkspaces) {
-        await loadWorkspaceFromDrive(currentWorkspace);
-        initCards();
-        applySearchAndFilterToDOM();
-    }
-
-    // Iniciar sincronització periòdica
-    startPeriodicSync();
-
-    console.log("✅ Connectat a Google Drive. Sincronització activada.");
+    // Obrir finestra per a l'Implicit Flow
+    const clientId = GOOGLE_CLIENT_ID;
+    
+    // Calcular el redirect_uri correcte (sense index.html)
+    const pathWithoutFile = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    const redirectUri = window.location.origin + pathWithoutFile;
+    
+    const scope = GOOGLE_SCOPES;
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${clientId}&` +
+        `response_type=token&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `prompt=consent`;
+    
+    console.log("Redirect URI:", redirectUri);
+    // Redirigir a l'URL d'autenticació
+    window.location.href = authUrl;
 }
 
 
@@ -1753,16 +1749,15 @@ function stopPeriodicSync() {
 
 
 async function loadAllDriveWorkspaces() {
-    if (!driveReady) return [];
+    if (!driveReady || !googleAccessToken) return [];
 
     try {
-        const res = await gapi.client.drive.files.list({
-            q: "mimeType='application/json' and trashed=false",
-            pageSize: 100,
-            fields: "files(id, name, modifiedTime)"
-        });
+        const url = `https://www.googleapis.com/drive/v3/files?q=mimeType='application/json' and trashed=false&pageSize=100&fields=files(id,name,modifiedTime)&access_token=${googleAccessToken}`;
 
-        const files = res.result.files || [];
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const files = data.files || [];
 
         files.forEach(file => {
             const workspaceName = file.name.replace(".json", "");
@@ -1793,15 +1788,13 @@ document.addEventListener("DOMContentLoaded",()=>{
     applySearchAndFilterToDOM(); // refresc visual
     buildTagSuggestions();       // suggeriments formulari
     
-    // INICIALITZAR GOOGLE AUTH
+    // INICIALITZAR GOOGLE AUTH (nova REST API)
     window.addEventListener("load", () => {
         const wait = setInterval(() => {
-            if (typeof gapi !== "undefined" && typeof google !== "undefined") {
+            if (typeof google !== "undefined") {
                 clearInterval(wait);
-                gapi.load("client:auth2", () => {
-                    console.log("GAPI carregat!");
-                    initGoogleAuth();
-                });
+                console.log("Google API carregat!");
+                initGoogleAuth();
             }
         }, 100);
     });
