@@ -943,12 +943,10 @@ toggleAllBtn.onclick = () => {
 
         if(allOpen && !card.open){
             card.open = true;
-            save();
             openCardDOM(el);
         }
         else if(!allOpen && card.open){
             card.open = false;
-            save();
             saveInline();
             closeCardDOM(el);
         }
@@ -1141,7 +1139,6 @@ function toggleCardDOM(card, el){
     const compact = el.querySelector(".tagRowCompact");
 
     card.open = !card.open;
-    save();
 
     if(card.open){
         //compact.style.display = "none";
