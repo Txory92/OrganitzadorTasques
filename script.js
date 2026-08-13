@@ -1038,6 +1038,7 @@ function buildCardElement(card) {
             </div>
 
             <div class="cardBody">
+                <div class="richTextToolbar" aria-label="Eines de format"></div>
                 <div class="bodyText bodyTextEdit" contenteditable="true"></div>
             </div>
         </div>
@@ -1069,6 +1070,7 @@ function buildCardElement(card) {
     // COS EDITABLE
     bodyText.innerHTML = card.content.replace(/\n/g,"<br>");
     bodyText.setAttribute("contenteditable", "true");
+    createRichTextToolbar(el.querySelector(".richTextToolbar"), bodyText);
 
 
     /* -------- ETIQUETES COMPACTES -------- */
@@ -1355,7 +1357,7 @@ function openModalForCard(card, cardEl){
     // Posem contingut
     modalTitleDisp.textContent = card.title;
     modalTagsInput.value = card.tags.join(", ");
-    modalTextInput.value = card.content;
+    modalTextInput.innerHTML = card.content.replace(/\n/g, "<br>");
     modalColorDot.style.background = card.color;
 
     // Mostrem modal
@@ -1418,15 +1420,7 @@ modalColorSelector.onclick = ()=>{
 };
 
 
-/* ============================================================
-   MODAL — LLISTES AUTOMÀTIQUES
-============================================================ */
-
-modalTextInput.addEventListener("input", ()=>{
-    const pos = modalTextInput.selectionStart;
-    modalTextInput.value = formatLists(modalTextInput.value);
-    modalTextInput.selectionEnd = pos;
-});
+createRichTextToolbar(document.getElementById("modalTextToolbar"), modalTextInput);
 
 
 /* ============================================================
@@ -1442,7 +1436,7 @@ modalSave.onclick = ()=>{
                                 .split(",")
                                 .map(t=>t.trim())
                                 .filter(Boolean);
-    modalCurrentCard.content = formatLists(modalTextInput.value.trim());
+    modalCurrentCard.content = modalTextInput.innerHTML.trim();
 
     save();
 
@@ -1721,6 +1715,68 @@ function enableInlineAutoSave(card, el){
         cardBody.style.transition = "";
         saveInline(card, el, false);
     };
+}
+
+function createRichTextToolbar(toolbar, editor){
+    enableListIndentation(editor);
+
+    const actions = [
+        { command: "bold", label: "B", title: "Negreta" },
+        { command: "italic", label: "I", title: "Cursiva" },
+        { command: "underline", label: "U", title: "Subratllat" },
+        { command: "insertUnorderedList", label: "•", title: "Llista amb punts" },
+        { command: "insertOrderedList", label: "1.", title: "Llista numerada" },
+        { command: "formatBlock", value: "blockquote", label: "❝", title: "Cita" },
+        { command: "createLink", label: "↗", title: "Afegir enllaç" },
+        { command: "removeFormat", label: "Tx", title: "Netejar format" }
+    ];
+
+    toolbar.innerHTML = "";
+    actions.forEach(({ command, value, label, title }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "richTextTool";
+        button.textContent = label;
+        button.title = title;
+        button.setAttribute("aria-label", title);
+        button.addEventListener("mousedown", event => event.preventDefault());
+        button.addEventListener("click", event => {
+            event.stopPropagation();
+            editor.focus();
+
+            if (command === "createLink") {
+                const url = window.prompt("Enganxa l'enllaç:");
+                if (!url) return;
+                document.execCommand(command, false, /^https?:\/\//i.test(url) ? url : `https://${url}`);
+            } else {
+                document.execCommand(command, false, value || null);
+            }
+
+            editor.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+        toolbar.appendChild(button);
+    });
+}
+
+function enableListIndentation(editor){
+    if (editor.dataset.listIndentationEnabled) return;
+    editor.dataset.listIndentationEnabled = "true";
+
+    editor.addEventListener("keydown", event => {
+        if (event.key !== "Tab") return;
+
+        const selection = window.getSelection();
+        const node = selection?.anchorNode;
+        const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+        const listItem = element?.closest("li");
+
+        // Fora d'una llista, Tab manté el seu comportament habitual.
+        if (!listItem || !editor.contains(listItem)) return;
+
+        event.preventDefault();
+        document.execCommand(event.shiftKey ? "outdent" : "indent");
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 }
 
 

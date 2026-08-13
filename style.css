@@ -643,7 +643,9 @@ input, textarea {
 
 #modalText {
     min-height: 200px;
-    resize: vertical;
+    box-sizing: border-box;
+    outline: none;
+    overflow-y: auto;
 }
 
 #modalColorSelector {
@@ -1132,6 +1134,90 @@ button {
 .bodyText[contenteditable="true"] {
     outline: none;
     cursor: text;
+}
+
+.richTextToolbar {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-wrap: wrap;
+    padding: 6px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card-bg) 92%, var(--btn-bg));
+}
+
+.richTextTool {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.richTextTool:hover,
+.richTextTool:focus-visible {
+    background: rgba(0, 110, 255, 0.14);
+    color: var(--btn-bg);
+    outline: none;
+}
+
+.richTextEditor,
+.bodyText[contenteditable="true"] {
+    line-height: 1.55;
+}
+
+.richTextEditor blockquote,
+.bodyText blockquote {
+    margin: 10px 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--btn-bg);
+    color: color-mix(in srgb, var(--text) 72%, transparent);
+}
+
+.richTextEditor a,
+.bodyText a {
+    color: var(--btn-bg);
+    text-decoration: underline;
+}
+
+.richTextEditor ul,
+.bodyText ul {
+    list-style-type: disc;
+}
+
+.richTextEditor ul ul,
+.bodyText ul ul {
+    list-style-type: circle;
+}
+
+.richTextEditor ul ul ul,
+.bodyText ul ul ul {
+    list-style-type: square;
+}
+
+.richTextEditor ol,
+.bodyText ol {
+    list-style-type: decimal;
+}
+
+.richTextEditor ol ol,
+.bodyText ol ol {
+    list-style-type: lower-alpha;
+}
+
+.richTextEditor ol ol ol,
+.bodyText ol ol ol {
+    list-style-type: lower-roman;
+}
+
+.richTextEditor ol ol ol ol,
+.bodyText ol ol ol ol {
+    list-style-type: decimal;
 }
 
 .tagsEditable {
@@ -1775,11 +1861,6 @@ html, body {
 /* ============================================================
    LOGIN STATUS INDICATOR
 ============================================================ */
-
-/* Connectat a Google Drive - SIN INDICATOR (com abans) */
-header.logged-in {
-    /* No mostrar res quan estàs connectat */
-}
 
 /* No connectat a Google Drive - MOSTRAR INDICADOR */
 header.logged-out {
