@@ -27,6 +27,7 @@ let driveSaveTimer = null;
 let driveSaveInProgress = false;
 let queuedDriveWorkspace = null;
 let queuedDriveRevision = 0;
+const DRIVE_IMPORT_MARGIN_MS = 45 * 1000;
 
 function updateDriveSyncStatus(state, detail = "") {
     const status = document.getElementById("driveSyncStatus");
@@ -517,10 +518,7 @@ async function loadWorkspaceFromDrive(workspaceName) {
 
     try {
         const localStorageValue = localStorage.getItem(workspaceName);
-        if (localStorageValue !== null) {
-            console.log(`ℹ️ Workspace "${workspaceName}" ja existeix en local. No es descarrega de Drive.`);
-            return null;
-        }
+        const localTimestamp = Number(localStorage.getItem(workspaceName + "_timestamp")) || 0;
 
         const fileName = `${workspaceName}.json`;
         
@@ -553,8 +551,17 @@ async function loadWorkspaceFromDrive(workspaceName) {
             return null;
         }
 
-        const fileId = searchData.files[0].id;
-        console.log(`📥 Inicialitzant workspace "${workspaceName}" des de Drive...`);
+        const driveFile = searchData.files[0];
+        const fileId = driveFile.id;
+        const driveModifiedTime = new Date(driveFile.modifiedTime).getTime();
+        const driveIsClearlyNewer = driveModifiedTime > localTimestamp + DRIVE_IMPORT_MARGIN_MS;
+
+        if (localStorageValue !== null && !driveIsClearlyNewer) {
+            console.log(`ℹ️ Local es manté per "${workspaceName}". Drive no és prou més nou.`);
+            return null;
+        }
+
+        console.log(`📥 Carregant workspace "${workspaceName}" des de Drive...`);
 
         const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
         const fileRes = await fetch(fileUrl, {
@@ -578,9 +585,14 @@ async function loadWorkspaceFromDrive(workspaceName) {
             return null;
         }
 
+        if (localStorageValue !== null) {
+            localStorage.setItem(workspaceName + "_beforeDriveImport", localStorageValue);
+            showDriveImportRecovery(workspaceName);
+        }
+
         cards = driveCards;
         localStorage.setItem(workspaceName, JSON.stringify(cards));
-        localStorage.setItem(workspaceName + "_timestamp", Date.now().toString());
+        localStorage.setItem(workspaceName + "_timestamp", driveModifiedTime.toString());
         localStorage.setItem(workspaceName + "_driveId", fileId);
 
         console.log(`✅ ${cards.length} targetes inicialitzades des de Drive`);
@@ -590,6 +602,47 @@ async function loadWorkspaceFromDrive(workspaceName) {
         console.error("❌ Error carregant des de Google Drive:", err);
         return null;
     }
+}
+
+function showDriveImportRecovery(workspaceName) {
+    if (document.getElementById("driveImportRecovery")) return;
+
+    const banner = document.createElement("div");
+    banner.id = "driveImportRecovery";
+    banner.className = "syncConflictBanner";
+
+    const message = document.createElement("span");
+    message.textContent = "S'ha carregat una versió més nova de Drive. La versió local anterior es conserva com a còpia.";
+
+    const restoreButton = document.createElement("button");
+    restoreButton.type = "button";
+    restoreButton.textContent = "Restaurar versió local";
+    restoreButton.onclick = () => {
+        const backupKey = workspaceName + "_beforeDriveImport";
+        const backup = localStorage.getItem(backupKey);
+        if (!backup) return;
+
+        cards = JSON.parse(backup);
+        localStorage.setItem(workspaceName, backup);
+        localStorage.setItem(workspaceName + "_timestamp", Date.now().toString());
+        localStorage.removeItem(backupKey);
+        initCards();
+        rebuildFilters();
+        applySearchAndFilterToDOM();
+        queueDriveSave(workspaceName);
+        banner.remove();
+    };
+
+    const keepButton = document.createElement("button");
+    keepButton.type = "button";
+    keepButton.textContent = "Mantenir Drive";
+    keepButton.onclick = () => {
+        localStorage.removeItem(workspaceName + "_beforeDriveImport");
+        banner.remove();
+    };
+
+    banner.append(message, restoreButton, keepButton);
+    document.body.insertBefore(banner, document.body.firstChild);
 }
 
 
@@ -1905,6 +1958,7 @@ function getAllWorkspaces() {
             k.endsWith("_driveId") || 
             k.endsWith("_driveMtime") ||
             k.endsWith("_beforeDriveSync") ||
+            k.endsWith("_beforeDriveImport") ||
             k.endsWith("_timestamp")) {
             return false;
         }
@@ -2157,9 +2211,7 @@ async function syncDriveData() {
         initCards();
         applySearchAndFilterToDOM();
 
-        const saveRevision = ++driveSaveRevision;
-        updateDriveSyncStatus("pending");
-        await saveWorkspaceToDrive(currentWorkspace, saveRevision);
+        updateDriveSyncStatus("synced");
         
         console.log("✅ Sincronització completada. Connectat a Google Drive.");
         
