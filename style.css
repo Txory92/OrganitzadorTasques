@@ -78,6 +78,57 @@ body {
     display: none !important;
 }
 
+.syncConflictBanner {
+    position: fixed;
+    z-index: 10000;
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 12px 16px;
+    border: 1px solid #b86b00;
+    border-radius: 8px;
+    background: #fff6e8;
+    color: #5f3700;
+    box-shadow: var(--shadow-2);
+    font-size: 14px;
+}
+
+.syncConflictBanner button {
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #fff;
+    color: #5f3700;
+    border: 1px solid #b86b00;
+    font-weight: 600;
+}
+
+.syncConflictBanner button:first-of-type {
+    background: #b86b00;
+    color: #fff;
+}
+
+[data-theme="dark"] .syncConflictBanner {
+    background: #3b2b18;
+    color: #ffe0b2;
+    border-color: #f0a544;
+}
+
+[data-theme="dark"] .syncConflictBanner button {
+    background: #2b2014;
+    color: #ffe0b2;
+    border-color: #f0a544;
+}
+
+[data-theme="dark"] .syncConflictBanner button:first-of-type {
+    background: #c98224;
+    color: #1c1208;
+}
+
 h2 {
     margin: 0 0 20px 0;
     font-size: 28px;

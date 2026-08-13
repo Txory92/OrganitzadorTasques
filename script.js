@@ -473,7 +473,7 @@ async function saveWorkspaceToDrive(workspaceName) {
    GOOGLE DRIVE SYNC — CARREGAR WORKSPACE (REST API)
 ============================================================ */
 
-async function loadWorkspaceFromDrive(workspaceName) {
+async function loadWorkspaceFromDrive(workspaceName, allowDriveOverwrite = false) {
     if (!driveReady || !googleAccessToken) {
         console.log("⚠️ No hi ha autenticació. Saltant sincronització de Drive.");
         return null;
@@ -523,6 +523,21 @@ async function loadWorkspaceFromDrive(workspaceName) {
         if (localStorageValue && !localTimestamp) {
             console.warn(`⚠️ Conflicte pendent per "${workspaceName}": hi ha dades locals sense timestamp. No se substitueixen per Drive.`);
             localStorage.setItem(workspaceName + "_beforeDriveSync", localStorageValue);
+            return null;
+        }
+
+        const hasLocalCards = (() => {
+            try {
+                return Array.isArray(JSON.parse(localStorageValue || "[]")) && JSON.parse(localStorageValue || "[]").length > 0;
+            } catch {
+                return false;
+            }
+        })();
+
+        if (driveModifiedTime > localTimestamp && hasLocalCards && !allowDriveOverwrite) {
+            localStorage.setItem(workspaceName + "_beforeDriveSync", localStorageValue);
+            showSyncConflictBanner(workspaceName, driveModifiedTime);
+            console.warn(`⚠️ Drive és més recent, però es mantenen les dades locals de "${workspaceName}" fins que triïs una opció.`);
             return null;
         }
 
@@ -592,6 +607,95 @@ async function loadWorkspaceFromDrive(workspaceName) {
         console.error("❌ Error carregant des de Google Drive:", err);
         return null;
     }
+}
+
+function showSyncConflictBanner(workspaceName, driveModifiedTime) {
+    if (document.getElementById("driveSyncConflict")) return;
+
+    const banner = document.createElement("div");
+    banner.id = "driveSyncConflict";
+    banner.className = "syncConflictBanner";
+
+    const message = document.createElement("span");
+    message.textContent = `Hi ha una versió més nova a Drive (${new Date(driveModifiedTime).toLocaleString("ca-ES")}). S'han mantingut les teves targetes locals.`;
+
+    const keepLocalButton = document.createElement("button");
+    keepLocalButton.type = "button";
+    keepLocalButton.textContent = "Mantenir i pujar local";
+    keepLocalButton.onclick = async () => {
+        await saveWorkspaceToDrive(workspaceName);
+        localStorage.removeItem(workspaceName + "_beforeDriveSync");
+        banner.remove();
+    };
+
+    const loadDriveButton = document.createElement("button");
+    loadDriveButton.type = "button";
+    loadDriveButton.textContent = "Carregar Drive";
+    loadDriveButton.onclick = async () => {
+        const driveCards = await loadWorkspaceFromDrive(workspaceName, true);
+        if (driveCards) {
+            cards = driveCards;
+            initCards();
+            rebuildFilters();
+            applySearchAndFilterToDOM();
+        }
+        localStorage.removeItem(workspaceName + "_beforeDriveSync");
+        banner.remove();
+    };
+
+    banner.append(message, keepLocalButton, loadDriveButton);
+    document.body.insertBefore(banner, document.body.firstChild);
+}
+
+function showLocalBackupRecovery(workspaceName) {
+    const backupKey = workspaceName + "_beforeDriveSync";
+    const backup = localStorage.getItem(backupKey);
+    const current = localStorage.getItem(workspaceName);
+
+    if (!backup || backup === current) return false;
+
+    try {
+        if (!Array.isArray(JSON.parse(backup))) return false;
+    } catch {
+        return false;
+    }
+
+    if (document.getElementById("localBackupRecovery")) return true;
+
+    const banner = document.createElement("div");
+    banner.id = "localBackupRecovery";
+    banner.className = "syncConflictBanner";
+
+    const message = document.createElement("span");
+    message.textContent = "S'ha trobat una còpia local anterior a una sincronització de Drive.";
+
+    const restoreButton = document.createElement("button");
+    restoreButton.type = "button";
+    restoreButton.textContent = "Restaurar còpia local";
+    restoreButton.onclick = () => {
+        cards = JSON.parse(backup);
+        localStorage.setItem(workspaceName, backup);
+        localStorage.setItem(workspaceName + "_timestamp", Date.now().toString());
+        localStorage.removeItem(backupKey);
+        initCards();
+        rebuildFilters();
+        applySearchAndFilterToDOM();
+        save();
+        banner.remove();
+    };
+
+    const discardButton = document.createElement("button");
+    discardButton.type = "button";
+    discardButton.textContent = "Descartar còpia";
+    discardButton.onclick = () => {
+        localStorage.removeItem(backupKey);
+        banner.remove();
+        syncDriveData();
+    };
+
+    banner.append(message, restoreButton, discardButton);
+    document.body.insertBefore(banner, document.body.firstChild);
+    return true;
 }
 
 
@@ -1909,6 +2013,7 @@ function getAllWorkspaces() {
         if (k.endsWith("_timestamp") || 
             k.endsWith("_driveId") || 
             k.endsWith("_driveMtime") ||
+            k.endsWith("_beforeDriveSync") ||
             k.endsWith("_timestamp")) {
             return false;
         }
@@ -2136,6 +2241,8 @@ function updateLoginStatus(isLoggedIn) {
 async function syncDriveData() {
     try {
         console.log("🔄 Sincronitzant dades del Drive...");
+
+        if (showLocalBackupRecovery(currentWorkspace)) return;
         
         // Crear/verificar carpeta si no existeix
         if (!driveFolderId) {
