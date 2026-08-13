@@ -20,6 +20,8 @@ let googleAuthenticated = false;
 let driveReady = false;
 let googleAccessToken = null;  // Guardar el token d'accés
 let driveFolderId = null;  // ID de la carpeta d'OrganitzadorTasques
+let tokenExpirationTime = null;  // Quan expira el token (timestamp)
+let tokenRefreshInterval = null;  // Interval per refrescar el token
 
 
 /* ------------------------------------------------------------
@@ -148,32 +150,213 @@ function save() {
     // Guarda també el nom del workspace actual
     localStorage.setItem("appTitle", currentWorkspace);
 
-    // Sincronitza a Google Drive si està connectat
+    // Sincronitza a Google Drive si està connectat (async, en background)
     if (driveReady) {
-        saveWorkspaceToDrive(currentWorkspace);
+        saveWorkspaceToDrive(currentWorkspace).catch(err => console.error("Error guardant a Drive:", err));
     }
 }
 
+// Token refresh automàtic ELIMINAT
+// Ara fem refresh reactiu quan detectem 401 (token expirat) en una request
+// Això evita que es tanquin les targetes obertes sense motiu
+/*
+// Refrescar el token automàticament (cada 50 minuts)
+async function startTokenRefresh() {
+    if (tokenRefreshInterval) {
+        clearInterval(tokenRefreshInterval);
+    }
 
-async function ensureAppFolder() {
+    // Fer refresh cada 50 minuts (deixar 10 minuts de marge)
+    tokenRefreshInterval = setInterval(async () => {
+        console.log("🔄 Refrescant token de Google...");
+        await performTokenRefresh();
+    }, 50 * 60 * 1000); // 50 minuts
+}
+*/
+
+// Helper: Check for expired token (401) i refrescar si és necessari
+async function handleDriveResponse(response) {
+    if (response.status === 401) {
+        console.warn("⚠️ Token expirat (401). Intentant refrescar...");
+        
+        // Intentar refrescar el token
+        await performTokenRefresh();
+        
+        // Esperar un moment per deixar que el popup refrescara el token
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Si el token segueix sent el mateix, mostrar avís
+        if (googleAccessToken) {
+            console.log("✅ Token refrescat. Reintentant operació...");
+            return true; // Caller ha de reintentar la request
+        } else {
+            console.error("❌ No es va poder refrescar el token. Cal tornar a fer login.");
+            showTokenExpiredAlert();
+            return false;
+        }
+    }
+    return null; // No hi ha problema
+}
+
+function showTokenExpiredAlert() {
+    const message = "La teva sessió ha expirat. Fes login de nou.";
+    console.warn(message);
+    
+    // Mostrar al·lerta visual (sense bloquejar)
+    const banner = document.createElement('div');
+    banner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #f44336;
+        color: white;
+        padding: 12px;
+        text-align: center;
+        font-weight: 600;
+        z-index: 9999;
+        font-size: 14px;
+    `;
+    banner.textContent = `${message} `;
+    
+    const btn = document.createElement('button');
+    btn.textContent = "Login";
+    btn.style.cssText = `
+        margin-left: 8px;
+        background: white;
+        color: #f44336;
+        border: none;
+        padding: 4px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    `;
+    btn.onclick = () => {
+        handleGoogleLogin();
+        banner.remove();
+    };
+    
+    banner.appendChild(btn);
+    document.body.insertBefore(banner, document.body.firstChild);
+    
+    setTimeout(() => {
+        if (banner.parentNode) banner.remove();
+    }, 8000);
+}
+async function performTokenRefresh() {
     if (!googleAccessToken) return;
 
     try {
-        // Buscar si ja existeix la carpeta
-        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='OrganitzadorTasques' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive&fields=files(id)&pageSize=1&access_token=${googleAccessToken}`;
+        console.log("🔄 Refrescant token de Google...");
         
-        const searchRes = await fetch(searchUrl);
+        const clientId = GOOGLE_CLIENT_ID;
+        const pathWithoutFile = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        const redirectUri = window.location.origin + pathWithoutFile;
+        const scope = GOOGLE_SCOPES;
+
+        // Obrir popup invisible per auth
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+            `client_id=${clientId}&` +
+            `response_type=token&` +
+            `scope=${encodeURIComponent(scope)}&` +
+            `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+            `prompt=none`;
+
+        const popup = window.open(authUrl, 'tokenRefresh', 'width=1,height=1');
+        
+        // Monitoritzar popup per token nou
+        const checkInterval = setInterval(() => {
+            try {
+                // Intentar llegir URL del popup (si tenim accés)
+                if (popup && popup.location && popup.location.hash) {
+                    const hash = popup.location.hash.substring(1);
+                    const params = new URLSearchParams(hash);
+                    const newToken = params.get('access_token');
+                    
+                    if (newToken && newToken !== googleAccessToken) {
+                        googleAccessToken = newToken;
+                        localStorage.setItem("googleAccessToken", newToken);
+                        console.log("✅ Token refrescat silenciosament!");
+                        popup.close();
+                        clearInterval(checkInterval);
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Si no podem accedir (popup blocker), tancar i continuar
+                popup.close();
+                clearInterval(checkInterval);
+            }
+        }, 500);
+
+        // Timeout: tancar popup si no funciona
+        setTimeout(() => {
+            if (popup && !popup.closed) {
+                popup.close();
+            }
+            clearInterval(checkInterval);
+        }, 3000);
+
+    } catch (err) {
+        console.warn("⚠️ No es va poder refrescar el token silenciosament:", err);
+        // Continue anyway - token serà vàlid uns minuts més
+    }
+}
+
+// Ya no es necesario (refresh automático eliminado)
+/*
+function stopTokenRefresh() {
+    if (tokenRefreshInterval) {
+        clearInterval(tokenRefreshInterval);
+        tokenRefreshInterval = null;
+    }
+}
+*/
+
+
+async function ensureAppFolder() {
+    if (!googleAccessToken) {
+        console.warn("⚠️ No hi ha token d'accés per crear carpeta");
+        return;
+    }
+
+    try {
+        console.log("🔍 Buscant carpeta OrganitzadorTasques...");
+        
+        // Buscar si ja existeix la carpeta
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=name='OrganitzadorTasques' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive&fields=files(id)&pageSize=1`;
+        
+        const searchRes = await fetch(searchUrl, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+        
+        // Detectar si token expirat
+        if (searchRes.status === 401) {
+            const shouldRetry = await handleDriveResponse(searchRes);
+            if (shouldRetry) {
+                return await ensureAppFolder();
+            }
+            return;
+        }
+        
+        if (!searchRes.ok) {
+            throw new Error(`Error en cerca: ${searchRes.status} ${searchRes.statusText}`);
+        }
+        
         const searchData = await searchRes.json();
 
         if (searchData.files && searchData.files.length > 0) {
             // Carpeta ja existeix
             driveFolderId = searchData.files[0].id;
-            console.log("✅ Carpeta OrganitzadorTasques trobada al Drive");
+            localStorage.setItem("driveFolderId", driveFolderId);
+            console.log("✅ Carpeta OrganitzadorTasques trobada:", driveFolderId);
             return;
         }
 
+        console.log("📁 Carpeta no existeix. Creant-la...");
+        
         // Crear carpeta nova
-        const createUrl = `https://www.googleapis.com/drive/v3/files?access_token=${googleAccessToken}`;
+        const createUrl = `https://www.googleapis.com/drive/v3/files`;
         const folderMetadata = {
             name: 'OrganitzadorTasques',
             mimeType: 'application/vnd.google-apps.folder'
@@ -181,16 +364,40 @@ async function ensureAppFolder() {
 
         const createRes = await fetch(createUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${googleAccessToken}`
+            },
             body: JSON.stringify(folderMetadata)
         });
 
+        // Detectar si token expirat en create
+        if (createRes.status === 401) {
+            const shouldRetry = await handleDriveResponse(createRes);
+            if (shouldRetry) {
+                return await ensureAppFolder();
+            }
+            return;
+        }
+
+        if (!createRes.ok) {
+            const errorText = await createRes.text();
+            throw new Error(`Error creant carpeta: ${createRes.status} ${createRes.statusText} - ${errorText}`);
+        }
+
         const folderData = await createRes.json();
+        
+        if (folderData.error) {
+            throw new Error(`Error API: ${folderData.error.message}`);
+        }
+        
         driveFolderId = folderData.id;
-        console.log("✅ Carpeta OrganitzadorTasques creada al Drive");
+        localStorage.setItem("driveFolderId", driveFolderId);
+        console.log("✅ Carpeta OrganitzadorTasques creada:", driveFolderId);
 
     } catch (err) {
         console.error("❌ Error creant/buscant carpeta:", err);
+        driveFolderId = null;
     }
 }
 
@@ -199,6 +406,16 @@ async function saveWorkspaceToDrive(workspaceName) {
     if (!driveReady || !googleAccessToken) return;
 
     try {
+        // Assegurar que hi ha driveFolderId (crear carpeta si no existeix)
+        if (!driveFolderId) {
+            console.log("ℹ️ Creant carpeta OrganitzadorTasques...");
+            await ensureAppFolder();
+            if (!driveFolderId) {
+                console.warn("⚠️ No s'ha pogut crear/recuperar carpeta. Saltant sincronització.");
+                return;
+            }
+        }
+
         const syncStatus = document.getElementById("syncStatus");
         if (syncStatus) {
             syncStatus.style.display = "inline-block";
@@ -210,9 +427,27 @@ async function saveWorkspaceToDrive(workspaceName) {
         
         // Buscar si ja existeix el fitxer a la carpeta
         const query = `name='${fileName}' and trashed=false and mimeType='application/json'${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
-        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id)&pageSize=1&access_token=${googleAccessToken}`;
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id)&pageSize=1`;
         
-        const searchRes = await fetch(searchUrl);
+        console.log("🔍 Buscant fitxer a Drive...");
+        const searchRes = await fetch(searchUrl, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+        
+        // Detectar si el token ha expirat
+        if (searchRes.status === 401) {
+            const shouldRetry = await handleDriveResponse(searchRes);
+            if (shouldRetry) {
+                // Reintentam (recursió, però amb nou token)
+                return await saveWorkspaceToDrive(workspaceName);
+            }
+            return;
+        }
+        
+        if (!searchRes.ok) {
+            throw new Error(`Error buscant fitxer: ${searchRes.status} ${searchRes.statusText}`);
+        }
+        
         const searchData = await searchRes.json();
 
         let fileId = null;
@@ -222,15 +457,33 @@ async function saveWorkspaceToDrive(workspaceName) {
 
         if (fileId) {
             // ACTUALITZAR fitxer existent
-            const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&access_token=${googleAccessToken}`;
-            await fetch(updateUrl, {
+            console.log("📝 Actualitzant fitxer existent...");
+            const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
+            const updateRes = await fetch(updateUrl, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${googleAccessToken}`
+                },
                 body: fileContent
             });
+            
+            if (updateRes.status === 401) {
+                const shouldRetry = await handleDriveResponse(updateRes);
+                if (shouldRetry) {
+                    return await saveWorkspaceToDrive(workspaceName);
+                }
+                return;
+            }
+            
+            if (!updateRes.ok) {
+                throw new Error(`Error actualitzant: ${updateRes.status} ${updateRes.statusText}`);
+            }
+            
             console.log(`✅ Workspace "${workspaceName}" actualitzat a Google Drive`);
         } else {
             // CREAR fitxer nou a la carpeta
+            console.log("📄 Creant fitxer nou...");
             const metadata = {
                 name: fileName,
                 mimeType: 'application/json'
@@ -239,22 +492,41 @@ async function saveWorkspaceToDrive(workspaceName) {
             // Afegir a la carpeta si existeix
             if (driveFolderId) {
                 metadata.parents = [driveFolderId];
+                console.log("📁 Fitxer anirà a carpeta:", driveFolderId);
             }
 
-            const createUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&access_token=${googleAccessToken}`;
+            const createUrl = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
             const boundary = '===============7330845974216740156==';
             const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${fileContent}\r\n--${boundary}--`;
 
             const createRes = await fetch(createUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+                headers: { 
+                    'Content-Type': `multipart/related; boundary=${boundary}`,
+                    'Authorization': `Bearer ${googleAccessToken}`
+                },
                 body: body
             });
+
+            if (createRes.status === 401) {
+                const shouldRetry = await handleDriveResponse(createRes);
+                if (shouldRetry) {
+                    return await saveWorkspaceToDrive(workspaceName);
+                }
+                return;
+            }
+
+            if (!createRes.ok) {
+                const errorText = await createRes.text();
+                throw new Error(`Error creant fitxer: ${createRes.status} ${createRes.statusText} - ${errorText}`);
+            }
 
             const createData = await createRes.json();
             if (createData.id) {
                 localStorage.setItem(workspaceName + "_driveId", createData.id);
                 console.log(`✅ Workspace "${workspaceName}" creat a Google Drive (carpeta OrganitzadorTasques)`);
+            } else if (createData.error) {
+                throw new Error(`Error API Drive: ${createData.error.message}`);
             }
         }
 
@@ -271,6 +543,7 @@ async function saveWorkspaceToDrive(workspaceName) {
         if (syncStatus) {
             syncStatus.classList.remove("syncing");
             syncStatus.textContent = "✗";
+            syncStatus.title = err.message;
             setTimeout(() => {
                 syncStatus.style.display = "none";
                 syncStatus.textContent = "✓";
@@ -285,20 +558,40 @@ async function saveWorkspaceToDrive(workspaceName) {
 ============================================================ */
 
 async function loadWorkspaceFromDrive(workspaceName) {
-    if (!driveReady || !googleAccessToken) return null;
+    if (!driveReady || !googleAccessToken) {
+        console.log("⚠️ No hi ha autenticació. Saltant sincronització de Drive.");
+        return null;
+    }
 
     try {
         const fileName = `${workspaceName}.json`;
         
         // Buscar fitxer a la carpeta correcta
         const query = `name='${fileName}' and trashed=false and mimeType='application/json'${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
-        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id,modifiedTime)&pageSize=1&access_token=${googleAccessToken}`;
+        const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id,modifiedTime)&pageSize=1`;
         
-        const searchRes = await fetch(searchUrl);
+        console.log(`🔍 Buscant workspace "${workspaceName}" a Drive...`);
+        const searchRes = await fetch(searchUrl, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+        
+        // Detectar token expirat
+        if (searchRes.status === 401) {
+            const shouldRetry = await handleDriveResponse(searchRes);
+            if (shouldRetry) {
+                return await loadWorkspaceFromDrive(workspaceName);
+            }
+            return null;
+        }
+        
+        if (!searchRes.ok) {
+            throw new Error(`Error buscant fitxer: ${searchRes.status} ${searchRes.statusText}`);
+        }
+        
         const searchData = await searchRes.json();
 
         if (!searchData.files || searchData.files.length === 0) {
-            console.log(`⚠️ Workspace "${workspaceName}" no trobat a Drive`);
+            console.log(`ℹ️ Workspace "${workspaceName}" no trobat a Drive (primera sincronització)`);
             return null;
         }
 
@@ -309,9 +602,29 @@ async function loadWorkspaceFromDrive(workspaceName) {
         const localTimestamp = parseInt(localStorage.getItem(workspaceName + "_timestamp")) || 0;
 
         if (driveModifiedTime > localTimestamp) {
-            // Drive és més recent (o no existeix local), descarregar
-            const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${googleAccessToken}`;
-            const fileRes = await fetch(fileUrl);
+            // Drive és més recent, descarregar
+            console.log(`📥 Descarregant workspace "${workspaceName}" de Drive...`);
+            
+            // Usar Authorization header en comptes de token a URL (evita CORS issues)
+            const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+            const fileRes = await fetch(fileUrl, {
+                headers: {
+                    'Authorization': `Bearer ${googleAccessToken}`
+                }
+            });
+            
+            if (fileRes.status === 401) {
+                console.error("❌ Token expirat");
+                googleAccessToken = null;
+                driveReady = false;
+                localStorage.removeItem("googleAccessToken");
+                return null;
+            }
+            
+            if (!fileRes.ok) {
+                throw new Error(`Error descarregant fitxer: ${fileRes.status} ${fileRes.statusText}`);
+            }
+            
             const driveCards = await fileRes.json();
 
             // Guardar les dades del Drive a localStorage
@@ -321,18 +634,21 @@ async function loadWorkspaceFromDrive(workspaceName) {
                 localStorage.setItem(workspaceName + "_timestamp", Date.now().toString());
                 localStorage.setItem(workspaceName + "_driveId", fileId);
 
-                console.log(`✅ Workspace "${workspaceName}" carregat des de Google Drive (${cards.length} targetes)`);
+                console.log(`✅ ${cards.length} targetes carregades de Drive`);
                 return driveCards;
+            } else {
+                console.warn("⚠️ Dades del Drive no són un array:", driveCards);
+                return null;
             }
         } else {
-            console.log(`ℹ️ Workspace "${workspaceName}" ja és sincronitzat (local és més recent)`);
+            console.log(`ℹ️ Dades locals més recents que Drive. No sincronitzant.`);
+            return null;
         }
 
     } catch (err) {
         console.error("❌ Error carregant des de Google Drive:", err);
+        return null;
     }
-
-    return null;
 }
 
 
@@ -1581,11 +1897,29 @@ function richTextAutoList(e, body, card, el) {
 
 function getAllWorkspaces() {
     const keys = Object.keys(localStorage);
-    return keys.filter(k =>
-        k !== "appTitle" &&
-        k !== "cardColumns" &&
-        k !== "theme"
-    );
+    return keys.filter(k => {
+        // Excloure variables de sistema i metadades
+        const exclusions = [
+            "appTitle",
+            "cardColumns",
+            "theme",
+            "googleAccessToken",
+            "driveFolderId",
+            "tokenExpirationTime"
+        ];
+        
+        if (exclusions.includes(k)) return false;
+        
+        // Excloure metadades de workspaces (timestamps, IDs, etc)
+        if (k.endsWith("_timestamp") || 
+            k.endsWith("_driveId") || 
+            k.endsWith("_driveMtime") ||
+            k.endsWith("_timestamp")) {
+            return false;
+        }
+        
+        return true;
+    });
 }
 
 function buildWorkspaceDropdown() {
@@ -1697,46 +2031,148 @@ function deleteWorkspace(name) {
 }
 
 async function initGoogleAuth() {
-    // Verificar si ja hi ha un token a la URL (per al Implicit Flow)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
+    // 1. PRIMER: Comprovar si ja hi ha token guardat a localStorage (sessió persistent)
+    let accessToken = localStorage.getItem("googleAccessToken");
     
     if (accessToken) {
+        console.log("🔐 Token trobat a localStorage. Usant sessió persistent...");
         googleAccessToken = accessToken;
+        driveReady = true;
+        
+        // Recuperar driveFolderId de localStorage si existeix
+        const savedFolderId = localStorage.getItem("driveFolderId");
+        if (savedFolderId) {
+            driveFolderId = savedFolderId;
+            console.log("✅ driveFolderId carregat de localStorage");
+        }
+        
+        updateLoginStatus(true);
+        
+        // Sincronitzar immediatament
+        await syncDriveData();
+        return;
+    }
+    
+    // 2. SEGON: Comprovar token a la URL (después de OAuth redirect)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    accessToken = hashParams.get('access_token');
+    const expiresIn = hashParams.get('expires_in');
+    
+    if (accessToken) {
+        console.log("✨ Token rebut d'OAuth. Guardant a localStorage...");
+        googleAccessToken = accessToken;
+        
+        // GUARDAR TOKEN A LOCALSTORAGE per persistència
+        localStorage.setItem("googleAccessToken", accessToken);
+        
+        // Guardar temps d'expiració (Google dona 3600 segons = 1 hora)
+        if (expiresIn) {
+            tokenExpirationTime = Date.now() + (parseInt(expiresIn) * 1000);
+            localStorage.setItem("tokenExpirationTime", tokenExpirationTime.toString());
+            console.log(`⏱️ Token válid fins a: ${new Date(tokenExpirationTime).toLocaleTimeString()}`);
+        }
+        
         driveReady = true;
         
         // Netejar la URL
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        document.getElementById("googleLoginBtn").classList.add("hidden");
-        document.getElementById("googleLogoutBtn").classList.remove("hidden");
+        updateLoginStatus(true);
         
-        // Crear/verificar carpeta OrganitzadorTasques
-        await ensureAppFolder();
+        // Crear/verificar carpeta si no existeix
+        if (!driveFolderId) {
+            await ensureAppFolder();
+        }
         
-        // Sincronitzar workspaces i carregar dades del Drive
-        await loadAllDriveWorkspaces();
-        await loadWorkspaceFromDrive(currentWorkspace);
-        initCards();
-        applySearchAndFilterToDOM();
-        startPeriodicSync();
-        
-        console.log("✅ Connectat a Google Drive. Sincronització activada.");
+        // Sincronitzar
+        await syncDriveData();
         return;
     }
+    
+    // 3. TERCERO: Mostrar botó de login si no hi ha sessió
+    updateLoginStatus(false);
     
     google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleLogin
     });
 
-    // Render optional (però necessari perquè el botó funcioni)
     google.accounts.id.renderButton(
         document.getElementById("googleLoginBtn"),
         { theme: "outline", size: "small" }
     );
 
-    google.accounts.id.prompt(); // mostra el popup si hi ha sessió iniciada
+    google.accounts.id.prompt();
+}
+
+// Actualitzar l'estat visual de connexió
+function updateLoginStatus(isLoggedIn) {
+    const loginBtn = document.getElementById("googleLoginBtn");
+    const logoutBtn = document.getElementById("googleLogoutBtn");
+    const header = document.querySelector("header");
+    
+    if (isLoggedIn) {
+        loginBtn.classList.add("hidden");
+        logoutBtn.classList.remove("hidden");
+        
+        // Afegir indicador visual de "Connectat"
+        if (header) {
+            header.classList.add("logged-in");
+            header.classList.remove("logged-out");
+        }
+        
+        console.log("✅ Estado: CONNECTAT a Google Drive");
+    } else {
+        loginBtn.classList.remove("hidden");
+        logoutBtn.classList.add("hidden");
+        
+        // Afegir indicador visual de "No connectat"
+        if (header) {
+            header.classList.add("logged-out");
+            header.classList.remove("logged-in");
+        }
+        
+        console.log("❌ Estado: NO CONNECTAT");
+    }
+}
+
+
+// Funció per sincronitzar dades del Drive
+async function syncDriveData() {
+    try {
+        console.log("🔄 Sincronitzant dades del Drive...");
+        
+        // Crear/verificar carpeta si no existeix
+        if (!driveFolderId) {
+            await ensureAppFolder();
+        }
+        
+        // Carregar tots els workspaces disponibles
+        await loadAllDriveWorkspaces();
+        
+        // Carregar el workspace actual del Drive
+        const driveData = await loadWorkspaceFromDrive(currentWorkspace);
+        
+        // Si hi ha dades del Drive, usar-les; sinó, inicialitzar
+        if (driveData && driveData.length > 0) {
+            cards = driveData;
+            console.log(`✅ Carregades ${cards.length} targetes del Drive`);
+        } else {
+            console.log("ℹ️ No hi ha dades al Drive. Usant dades locals.");
+        }
+        
+        // Renderitzar interfície
+        initCards();
+        applySearchAndFilterToDOM();
+        
+        // Iniciar sincronització periòdica
+        startPeriodicSync();
+        
+        console.log("✅ Sincronització completada. Connectat a Google Drive.");
+        
+    } catch (err) {
+        console.error("❌ Error sincronitzant:", err);
+    }
 }
 
 async function handleGoogleLogin(response) {
@@ -1808,9 +2244,21 @@ async function loadAllDriveWorkspaces() {
     try {
         // Buscar fitxers JSON a la carpeta (si existeix)
         const query = `mimeType='application/json' and trashed=false${driveFolderId ? ` and '${driveFolderId}' in parents` : ''}`;
-        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=100&fields=files(id,name,modifiedTime)&access_token=${googleAccessToken}`;
+        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=100&fields=files(id,name,modifiedTime)`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+        });
+        
+        // Detectar si token expirat
+        if (res.status === 401) {
+            const shouldRetry = await handleDriveResponse(res);
+            if (shouldRetry) {
+                return await loadAllDriveWorkspaces();
+            }
+            return [];
+        }
+        
         const data = await res.json();
 
         const files = data.files || [];
@@ -2077,12 +2525,21 @@ document.addEventListener("DOMContentLoaded",()=>{
     document.getElementById("googleLogoutBtn").onclick = () => {
         googleAuthenticated = false;
         driveReady = false;
+        googleAccessToken = null;
+        driveFolderId = null;
+        tokenExpirationTime = null;
         
-        // Aturar sincronització periòdica
+        // Netejar tokens de localStorage
+        localStorage.removeItem("googleAccessToken");
+        localStorage.removeItem("driveFolderId");
+        localStorage.removeItem("tokenExpirationTime");
+        
+        // Aturar sincronitzacions
         stopPeriodicSync();
-
-        document.getElementById("googleLoginBtn").classList.remove("hidden");
-        document.getElementById("googleLogoutBtn").classList.add("hidden");
+        stopTokenRefresh();
+        
+        // Actualitzar estado visual
+        updateLoginStatus(false);
 
         alert("Desconnectat de Google Drive");
     };
