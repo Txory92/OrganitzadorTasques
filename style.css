@@ -150,11 +150,6 @@ body {
     font-weight: 600;
 }
 
-.syncConflictBanner button:first-of-type {
-    background: #b86b00;
-    color: #fff;
-}
-
 [data-theme="dark"] .syncConflictBanner {
     background: #3b2b18;
     color: #ffe0b2;
@@ -165,11 +160,6 @@ body {
     background: #2b2014;
     color: #ffe0b2;
     border-color: #f0a544;
-}
-
-[data-theme="dark"] .syncConflictBanner button:first-of-type {
-    background: #c98224;
-    color: #1c1208;
 }
 
 h2 {
