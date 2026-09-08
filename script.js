@@ -164,7 +164,8 @@ function setLastSelectedCardColor(color){
 }
 
 function getNextColorInOrder(color){
-    const index = COLORS.indexOf(color);
+    const target = (color || "").toLowerCase();
+    const index = COLORS.findIndex(c => c.toLowerCase() === target);
     if(index === -1) return COLORS[0];
     return COLORS[(index + 1) % COLORS.length];
 }
@@ -1017,6 +1018,8 @@ createCardBtn.onclick = () => {
         open: false,
         pinned: false
     };
+
+    setLastSelectedCardColor(selectedAddColor);
 
     cards.unshift(card);
     save();
