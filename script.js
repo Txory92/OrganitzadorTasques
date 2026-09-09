@@ -2069,7 +2069,8 @@ function getAllWorkspaces() {
             "theme",
             "googleAccessToken",
             "driveFolderId",
-            "tokenExpirationTime"
+            "tokenExpirationTime",
+            "lastSelectedCardColor"
         ];
         
         if (exclusions.includes(k)) return false;
