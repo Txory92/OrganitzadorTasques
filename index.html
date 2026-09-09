@@ -21,44 +21,25 @@
         <div id="workspaceDropdown" class="hidden"></div>
     </div>
 
-    <div id="driveSyncStatus" class="driveSyncStatus" role="status" aria-live="polite">
-        <span class="driveSyncStatusDot"></span>
-        <span class="driveSyncStatusText">Només local</span>
-    </div>
+    <!-- TOP BAR -->
+    <div id="topBar">
+        <div id="columnSliderWrapper">
+            <label for="columnSlider">Columnes:</label>
 
-    <div id="extraMenuContainer">
-        <button id="extraMenuBtn" class="iconHeader">⚙</button>
-        <div id="extraMenu" class="hidden">
-            <button id="toggleDarkMode" class="menuItem">Mode fosc</button>
-            <button id="exportBtn" class="menuItem">Exportar</button>
-            <button id="importBtn" class="menuItem">Importar</button>
-            <button id="googleLoginBtn" class="menuItem">Connectar</button>
-            <button id="googleLogoutBtn" class="menuItem hidden">Desconnectar</button>
+            <input type="range" id="columnSlider" min="1" max="5" value="5" step="1">
+
+            <div id="columnSliderLabels">
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>Auto</span>
+            </div>
         </div>
-    </div>
-</header>
 
-
-
-<!-- TOP BAR -->
-<div id="topBar">
-    <div id="columnSliderWrapper">
-        <label for="columnSlider">Columnes:</label>
-        
-        <input type="range" id="columnSlider" min="1" max="5" value="5" step="1">
-
-        <div id="columnSliderLabels">
-            <span>1</span>
-            <span>2</span>
-            <span>3</span>
-            <span>4</span>
-            <span>Auto</span>
-        </div>
-    </div>
-
-    <button id="toggleAllBtn" class="btnSecondary">▾ Obrir totes</button>
-    <button id="addBtn" class="btnPrimary">+ Nova</button>
-    <div id="searchWrapper">
+        <button id="toggleAllBtn" class="btnSecondary">▾ Obrir totes</button>
+        <button id="addBtn" class="btnPrimary">+ Nova</button>
+        <div id="searchWrapper">
             <button id="searchToggleBtn" class="iconBtn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -69,7 +50,26 @@
 
             <input id="searchInput" type="text" placeholder="Buscar..." class="hidden">
         </div>
-</div>
+    </div>
+
+    <div id="headerActions">
+        <div id="driveSyncStatus" class="driveSyncStatus" role="status" aria-live="polite">
+            <span class="driveSyncStatusDot"></span>
+            <span class="driveSyncStatusText">Només local</span>
+        </div>
+
+        <div id="extraMenuContainer">
+            <button id="extraMenuBtn" class="iconHeader">⚙</button>
+            <div id="extraMenu" class="hidden">
+                <button id="toggleDarkMode" class="menuItem">Mode fosc</button>
+                <button id="exportBtn" class="menuItem">Exportar</button>
+                <button id="importBtn" class="menuItem">Importar</button>
+                <button id="googleLoginBtn" class="menuItem">Connectar</button>
+                <button id="googleLogoutBtn" class="menuItem hidden">Desconnectar</button>
+            </div>
+        </div>
+    </div>
+</header>
 
 
 
