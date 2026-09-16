@@ -1540,9 +1540,6 @@ modalColorSelector.onclick = ()=>{
 };
 
 
-createRichTextToolbar(document.getElementById("modalTextToolbar"), modalTextInput);
-
-
 /* ============================================================
    MODAL — GUARDAR CANVIS
 ============================================================ */
@@ -1884,46 +1881,65 @@ function enableInlineAutoSave(card, el){
     };
 }
 
+const richTextActions = [
+    { command: "bold", label: "B", title: "Negreta", shortcut: "Ctrl+B", code: "KeyB" },
+    { command: "italic", label: "I", title: "Cursiva", shortcut: "Ctrl+I", code: "KeyI" },
+    { command: "underline", label: "U", title: "Subratllat", shortcut: "Ctrl+U", code: "KeyU" },
+    { command: "insertUnorderedList", label: "•", title: "Llista amb punts", shortcut: "Ctrl+Maj+8", code: "Digit8", shift: true },
+    { command: "insertOrderedList", label: "1.", title: "Llista numerada", shortcut: "Ctrl+Maj+7", code: "Digit7", shift: true },
+    { command: "formatBlock", value: "blockquote", label: "❝", title: "Cita", shortcut: "Ctrl+Maj+9", code: "Digit9", shift: true },
+    { command: "createLink", label: "↗", title: "Afegir enllaç", shortcut: "Ctrl+K", code: "KeyK" },
+    { command: "removeFormat", label: "Tx", title: "Netejar format", shortcut: "Ctrl+\\", code: "Backslash" }
+];
+
+function executeRichTextAction(editor, { command, value }){
+    editor.focus();
+
+    if (command === "createLink") {
+        const url = window.prompt("Enganxa l'enllaç:");
+        if (!url) return false;
+        document.execCommand(command, false, /^https?:\/\//i.test(url) ? url : `https://${url}`);
+    } else {
+        document.execCommand(command, false, value || null);
+    }
+
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+}
+
 function createRichTextToolbar(toolbar, editor){
     enableListIndentation(editor);
 
-    const actions = [
-        { command: "bold", label: "B", title: "Negreta" },
-        { command: "italic", label: "I", title: "Cursiva" },
-        { command: "underline", label: "U", title: "Subratllat" },
-        { command: "insertUnorderedList", label: "•", title: "Llista amb punts" },
-        { command: "insertOrderedList", label: "1.", title: "Llista numerada" },
-        { command: "formatBlock", value: "blockquote", label: "❝", title: "Cita" },
-        { command: "createLink", label: "↗", title: "Afegir enllaç" },
-        { command: "removeFormat", label: "Tx", title: "Netejar format" }
-    ];
+    editor.addEventListener("keydown", event => {
+        if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
+
+        const action = richTextActions.find(item => item.code === event.code && Boolean(item.shift) === event.shiftKey);
+        if (!action) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        executeRichTextAction(editor, action);
+    });
 
     toolbar.innerHTML = "";
-    actions.forEach(({ command, value, label, title }) => {
+    richTextActions.forEach(action => {
+        const { label, title, shortcut } = action;
         const button = document.createElement("button");
         button.type = "button";
         button.className = "richTextTool";
         button.textContent = label;
-        button.title = title;
-        button.setAttribute("aria-label", title);
+        button.title = `${title} (${shortcut})`;
+        button.setAttribute("aria-label", `${title}. Drecera: ${shortcut}`);
         button.addEventListener("mousedown", event => event.preventDefault());
         button.addEventListener("click", event => {
             event.stopPropagation();
-            editor.focus();
-
-            if (command === "createLink") {
-                const url = window.prompt("Enganxa l'enllaç:");
-                if (!url) return;
-                document.execCommand(command, false, /^https?:\/\//i.test(url) ? url : `https://${url}`);
-            } else {
-                document.execCommand(command, false, value || null);
-            }
-
-            editor.dispatchEvent(new Event("input", { bubbles: true }));
+            executeRichTextAction(editor, action);
         });
         toolbar.appendChild(button);
     });
 }
+
+createRichTextToolbar(document.getElementById("modalTextToolbar"), modalTextInput);
 
 function enableListIndentation(editor){
     if (editor.dataset.listIndentationEnabled) return;
@@ -2550,45 +2566,6 @@ document.addEventListener("DOMContentLoaded",()=>{
         localStorage.setItem("cardColumns", columnSlider.value);
         applyColumns(columnSlider.value);
     };
-
-    // RICH TEXT (Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, Ctrl+Y)
-    document.addEventListener("keydown", e => {
-        const active = document.activeElement;
-
-        if (!active || !active.classList.contains("bodyText")) return;
-
-        // Bold
-        if (e.ctrlKey && e.key.toLowerCase() === "b") {
-            e.preventDefault();
-            document.execCommand("bold");
-            return;
-        }
-
-        // Italic
-        if (e.ctrlKey && e.key.toLowerCase() === "i") {
-            e.preventDefault();
-            document.execCommand("italic");
-            return;
-        }
-
-        // Underline
-        if (e.ctrlKey && e.key.toLowerCase() === "u") {
-            e.preventDefault();
-            document.execCommand("underline");
-            return;
-        }
-
-        // Undo (CTRL+Z)
-        if (e.ctrlKey && e.key.toLowerCase() === "z") {
-            // IMPORTANT: NO tocar, deixem que el browser ho faci
-            return;
-        }
-
-        // Redo (CTRL+Y)
-        if (e.ctrlKey && e.key.toLowerCase() === "y") {
-            return;
-        }
-    });
 
     const searchToggleBtn = document.getElementById("searchToggleBtn");
     const searchInput     = document.getElementById("searchInput");
