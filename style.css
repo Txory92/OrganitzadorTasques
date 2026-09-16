@@ -1044,6 +1044,14 @@ button {
 	user-select: text;
 }
 
+.bodyText img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 8px 0;
+    object-fit: contain;
+}
+
 .cardBody.open {
     padding: 0;
     max-height: 1000px;

@@ -1192,6 +1192,8 @@ function buildCardElement(card) {
     bodyText.innerHTML = card.content.replace(/\n/g,"<br>");
     bodyText.setAttribute("contenteditable", "true");
     createRichTextToolbar(el.querySelector(".richTextToolbar"), bodyText);
+    enableImagePaste(bodyText);
+    enableImageResize(bodyText);
 
 
     /* -------- ETIQUETES COMPACTES -------- */
@@ -1255,6 +1257,68 @@ function buildCardElement(card) {
     return el;
 }
 
+function enableImagePaste(editor){
+    if(editor.dataset.imagePasteEnabled) return;
+    editor.dataset.imagePasteEnabled = "true";
+
+    editor.addEventListener("paste", event => {
+        const imageItem = [...(event.clipboardData?.items || [])]
+            .find(item => item.type.startsWith("image/"));
+        if(!imageItem) return;
+
+        const file = imageItem.getAsFile();
+        if(!file) return;
+
+        event.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+            const selection = window.getSelection();
+            if(!selection || selection.rangeCount === 0) return;
+
+            const range = selection.getRangeAt(0);
+            if(!editor.contains(range.commonAncestorContainer)) return;
+
+            range.deleteContents();
+            const image = document.createElement("img");
+            image.src = reader.result;
+            image.alt = "Imatge enganxada";
+            image.className = "pastedCardImage";
+            image.style.width = "70%";
+            image.style.maxWidth = "100%";
+            image.style.height = "auto";
+            range.insertNode(image);
+            range.setStartAfter(image);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            enableImageResize(editor);
+            editor.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function enableImageResize(editor){
+    if(editor.dataset.imageResizeEnabled) return;
+    editor.dataset.imageResizeEnabled = "true";
+
+    editor.addEventListener("dblclick", event => {
+        const image = event.target.closest("img");
+        if(!image || !editor.contains(image)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const currentSize = Math.round((image.getBoundingClientRect().width / editor.clientWidth) * 100);
+        const requestedSize = Number(window.prompt("Mida de la imatge (10-100%):", currentSize));
+        if(!Number.isFinite(requestedSize)) return;
+
+        image.style.width = `${Math.min(Math.max(requestedSize, 10), 100)}%`;
+        image.style.maxWidth = "100%";
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+}
+
 
 /* ============================================================
    OBRIR/TANCAR TARGETA — Glow + gradient (Opció C)
@@ -1279,6 +1343,7 @@ function toggleCardDOM(card, el){
         // neteja segura (només quan tanco)
         const safe = formatLists(card.content).replace(/\n/g,"<br>");
         body.querySelector(".bodyText").innerHTML = safe;
+        enableImageResize(body.querySelector(".bodyText"));
     }
 }
 
@@ -1986,6 +2051,7 @@ function saveInline(card, el, normalize = true){
         .replace(/<br><br>/g,"<br>");
 
     body.innerHTML = safe;
+    enableImageResize(body);
 }
 
 
