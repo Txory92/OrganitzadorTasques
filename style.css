@@ -2018,10 +2018,9 @@ html, body {
     }
 
     /* LOGIN INDICATOR */
-    header.logged-out::after {
+    header.logged-out #driveLoginNotice {
         padding: 4px 8px;
         font-size: 10px;
-        right: 0;
     }
 }
 
@@ -2108,12 +2107,20 @@ html, body {
 
 /* No connectat a Google Drive - MOSTRAR INDICADOR */
 header.logged-out {
-    border-bottom: 3px solid #f44336;
+    border-bottom: none;
     flex-wrap: wrap;
 }
 
-header.logged-out::after {
-    content: "🔓 No connectat a Google Drive";
+#driveLoginNotice {
+    display: none;
+}
+
+header.logged-out #driveLoginNotice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
     flex: 0 0 100%;
     background: #f44336;
     color: white;
@@ -2124,4 +2131,15 @@ header.logged-out::after {
     letter-spacing: 0.5px;
     text-align: center;
     margin-top: 8px;
+}
+
+#driveLoginNotice button {
+    background: white;
+    color: #b71c1c;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    letter-spacing: 0;
 }
