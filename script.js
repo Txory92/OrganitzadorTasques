@@ -217,6 +217,7 @@ async function handleDriveResponse(response) {
     googleAccessToken = null;
     driveReady = false;
     localStorage.removeItem("googleAccessToken");
+    updateLoginStatus(false);
     updateDriveSyncStatus("error", "Sessió de Drive expirada");
     showTokenExpiredAlert();
     return false;
@@ -2374,6 +2375,7 @@ function updateLoginStatus(isLoggedIn) {
     } else {
         loginBtn.classList.remove("hidden");
         logoutBtn.classList.add("hidden");
+        updateDriveSyncStatus("local");
         
         // Afegir indicador visual de "No connectat"
         if (header) {
@@ -2415,6 +2417,7 @@ async function syncDriveData() {
         initCards();
         applySearchAndFilterToDOM();
 
+        if (!driveReady) return;
         updateDriveSyncStatus("synced");
         
         console.log("✅ Sincronització completada. Connectat a Google Drive.");
@@ -2427,7 +2430,9 @@ async function syncDriveData() {
 async function handleGoogleLogin(response) {
 
     googleAuthenticated = true;
-    google.accounts.id.disableAutoSelect();
+    if (typeof google !== "undefined" && google.accounts?.id) {
+        google.accounts.id.disableAutoSelect();
+    }
 
     // Obrir finestra per a l'Implicit Flow
     const clientId = GOOGLE_CLIENT_ID;
@@ -2725,7 +2730,6 @@ document.addEventListener("DOMContentLoaded",()=>{
         
         // Aturar sincronitzacions
         stopPeriodicSync();
-        stopTokenRefresh();
         
         // Actualitzar estado visual
         updateLoginStatus(false);
