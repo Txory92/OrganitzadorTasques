@@ -219,57 +219,7 @@ async function handleDriveResponse(response) {
     localStorage.removeItem("googleAccessToken");
     updateLoginStatus(false);
     updateDriveSyncStatus("error", "Sessió de Drive expirada");
-    showTokenExpiredAlert();
     return false;
-}
-
-function showTokenExpiredAlert() {
-    if (document.getElementById("tokenExpiredAlert")) return;
-
-    const message = "La teva sessió ha expirat. Fes login de nou.";
-    console.warn(message);
-    
-    // Mostrar al·lerta visual (sense bloquejar)
-    const banner = document.createElement('div');
-    banner.id = "tokenExpiredAlert";
-    banner.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: #f44336;
-        color: white;
-        padding: 12px;
-        text-align: center;
-        font-weight: 600;
-        z-index: 9999;
-        font-size: 14px;
-    `;
-    banner.textContent = `${message} `;
-    
-    const btn = document.createElement('button');
-    btn.textContent = "Login";
-    btn.style.cssText = `
-        margin-left: 8px;
-        background: white;
-        color: #f44336;
-        border: none;
-        padding: 4px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
-    `;
-    btn.onclick = () => {
-        handleGoogleLogin();
-        banner.remove();
-    };
-    
-    banner.appendChild(btn);
-    document.body.insertBefore(banner, document.body.firstChild);
-    
-    setTimeout(() => {
-        if (banner.parentNode) banner.remove();
-    }, 8000);
 }
 
 // Ya no es necesario (refresh automático eliminado)
